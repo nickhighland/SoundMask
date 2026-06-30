@@ -291,3 +291,7 @@ def main() -> None:
     result = install_update(config)
     if result.get("last_error"):
         raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

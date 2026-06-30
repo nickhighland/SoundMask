@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block title %}Restarting | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Network</p>
+      <h1>Restart queued</h1>
+    </div>
+    <p class="muted">SoundMask is applying the new web port and should be back in a few seconds.</p>
+  </div>
+
+  <section class="banner info-banner">
+    <strong>Reconnect using the new address</strong>
+    <p class="muted"><a href="{{ network_status.pending_soundmask_url }}">{{ network_status.pending_soundmask_url }}</a></p>
+    <p class="muted">{{ network_status.pending_device_url }}</p>
+  </section>
+
+  <div class="grid-two">
+    <article class="subpanel stack">
+      <h2>Requested change</h2>
+      <div class="status-stack">
+        <div class="status-row">
+          <span>Current port</span>
+          <strong>{{ network_status.current_port }}</strong>
+        </div>
+        <div class="status-row">
+          <span>Next port</span>
+          <strong>{{ network_status.pending_port }}</strong>
+        </div>
+        <div class="status-row">
+          <span>Requested at</span>
+          <strong>{{ network_status.change_requested_at }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <article class="subpanel stack">
+      <h2>What to expect</h2>
+      <div class="note-card">
+        <strong>Short restart</strong>
+        <p class="muted">The current page may stop responding briefly while the Linux service restarts on the new port.</p>
+      </div>
+      <div class="note-card">
+        <strong>soundmask.local</strong>
+        <p class="muted">If mDNS is working on your network, the first link above is the easiest way back in.</p>
+      </div>
+    </article>
+  </div>
+</section>
+{% endblock %}

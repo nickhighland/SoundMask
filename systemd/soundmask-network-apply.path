@@ -1,0 +1,10 @@
+[Unit]
+Description=SoundMask network settings trigger
+
+[Path]
+PathExists=/var/lib/soundmask/network-config-request.json
+PathChanged=/var/lib/soundmask/network-config-request.json
+Unit=soundmask-network-apply.service
+
+[Install]
+WantedBy=multi-user.target

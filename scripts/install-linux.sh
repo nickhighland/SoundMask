@@ -28,6 +28,23 @@ run_as_root() {
   fi
 }
 
+ensure_env_default() {
+  local key="$1"
+  local desired="$2"
+  local legacy="${3:-}"
+  local current=""
+
+  if run_as_root test -f "$ENV_FILE" && run_as_root grep -q "^${key}=" "$ENV_FILE"; then
+    current="$(run_as_root awk -F= -v key="$key" '$1 == key {print substr($0, index($0, "=") + 1)}' "$ENV_FILE" | tail -n 1)"
+    if [[ -n "$legacy" && "$current" == "$legacy" ]]; then
+      run_as_root sed -i "s|^${key}=.*|${key}=${desired}|" "$ENV_FILE"
+    fi
+    return
+  fi
+
+  run_as_root sh -c "printf '%s\n' '${key}=${desired}' >> '$ENV_FILE'"
+}
+
 disable_service_if_present() {
   local service_name="$1"
   if run_as_root systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
@@ -56,6 +73,9 @@ if ! id -u "$APP_USER" >/dev/null 2>&1; then
     --home-dir "$DATA_ROOT" \
     --shell /usr/sbin/nologin \
     "$APP_USER"
+fi
+if getent group audio >/dev/null 2>&1; then
+  run_as_root usermod -a -G audio "$APP_USER"
 fi
 
 run_as_root install -d -m 0755 "$APP_ROOT"
@@ -93,6 +113,9 @@ if [[ ! -f "$ENV_FILE" ]]; then
   run_as_root cp "$APP_ROOT/systemd/soundmask.env.example" "$ENV_FILE"
   run_as_root sed -i "s|__SOUNDMASK_SESSION_SECRET__|$session_secret|" "$ENV_FILE"
 fi
+ensure_env_default "SOUNDMASK_HOST" "0.0.0.0" "127.0.0.1"
+ensure_env_default "SOUNDMASK_PORT" "80" "8080"
+ensure_env_default "SOUNDMASK_DATA_DIR" "$DATA_ROOT"
 run_as_root chmod 0640 "$ENV_FILE"
 
 run_as_root hostnamectl set-hostname soundmask
@@ -121,6 +144,12 @@ run_as_root install -m 0644 \
 run_as_root install -m 0644 \
   "$APP_ROOT/systemd/soundmask-update-install.path" \
   /etc/systemd/system/soundmask-update-install.path
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-network-apply.service" \
+  /etc/systemd/system/soundmask-network-apply.service
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-network-apply.path" \
+  /etc/systemd/system/soundmask-network-apply.path
 run_as_root systemctl daemon-reload
 run_as_root systemctl enable --now avahi-daemon
 run_as_root systemctl enable "$SERVICE_NAME"
@@ -128,8 +157,9 @@ run_as_root systemctl restart "$SERVICE_NAME"
 run_as_root systemctl enable --now soundmask-update-check.timer
 run_as_root systemctl enable --now soundmask-update-check.path
 run_as_root systemctl enable --now soundmask-update-install.path
+run_as_root systemctl enable --now soundmask-network-apply.path
 run_as_root systemctl start soundmask-update-check.service
 
 echo "SoundMask installed."
 echo "Open http://soundmask.local or http://DEVICE-IP"
-echo "Edit $ENV_FILE to change host, port, data path, or Google client secret path."
+echo "Change the web port later from Settings -> Web access port, or edit $ENV_FILE manually."

@@ -4,8 +4,25 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.auth import login_required
+from app.network_config import load_status as load_network_status
+from app.network_config import request_port_change
 
 router = APIRouter(prefix="/settings")
+
+
+def _settings_context(
+    request: Request,
+    *,
+    network_error: str | None = None,
+    network_status: dict[str, object] | None = None,
+) -> dict[str, object]:
+    config = request.app.state.config
+    return {
+        "settings": request.app.state.db.get_settings(),
+        "network_supported": config.is_production,
+        "network_error": network_error,
+        "network_status": network_status or load_network_status(config),
+    }
 
 
 @router.get("", response_class=HTMLResponse)
@@ -14,7 +31,7 @@ async def settings_page(request: Request) -> HTMLResponse:
     return request.app.state.templates.TemplateResponse(
         request,
         "settings.html",
-        {"settings": request.app.state.db.get_settings()},
+        _settings_context(request),
     )
 
 
@@ -64,3 +81,45 @@ async def update_settings(
     request.app.state.scheduler.reload_jobs()
     request.app.state.scheduler.evaluate_playback()
     return RedirectResponse(url="/settings", status_code=303)
+
+
+@router.post("/network", response_class=HTMLResponse)
+@login_required
+async def update_network_settings(
+    request: Request,
+    port: int = Form(...),
+) -> HTMLResponse:
+    config = request.app.state.config
+    if not config.is_production:
+        return request.app.state.templates.TemplateResponse(
+            request,
+            "settings.html",
+            _settings_context(
+                request,
+                network_error=(
+                    "In-app port changes are only available on Linux appliance installs."
+                ),
+            ),
+            status_code=400,
+        )
+    try:
+        network_status = request_port_change(config, port)
+    except ValueError as exc:
+        return request.app.state.templates.TemplateResponse(
+            request,
+            "settings.html",
+            _settings_context(request, network_error=str(exc)),
+            status_code=400,
+        )
+    if not network_status["request_pending"]:
+        return request.app.state.templates.TemplateResponse(
+            request,
+            "settings.html",
+            _settings_context(request, network_status=network_status),
+        )
+    return request.app.state.templates.TemplateResponse(
+        request,
+        "network_change_requested.html",
+        {"network_status": network_status},
+        status_code=202,
+    )

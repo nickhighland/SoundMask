@@ -83,4 +83,89 @@
     </div>
   </form>
 </section>
+
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Network</p>
+      <h1>Web access port</h1>
+    </div>
+    <p class="muted">Choose which port the Linux appliance should listen on for the SoundMask web UI.</p>
+  </div>
+
+  {% if network_status.request_pending %}
+  <section class="banner info-banner">
+    <strong>Port change queued</strong>
+    <p class="muted">SoundMask is switching to port {{ network_status.pending_port }}. Reconnect soon at {{ network_status.pending_soundmask_url }}.</p>
+  </section>
+  {% endif %}
+
+  {% if network_error %}
+  <section class="banner warning-banner">
+    <strong>Network change blocked</strong>
+    <p class="muted">{{ network_error }}</p>
+  </section>
+  {% endif %}
+
+  {% if network_status.last_error %}
+  <section class="banner warning-banner">
+    <strong>Network apply issue</strong>
+    <p class="muted">{{ network_status.last_error }}</p>
+  </section>
+  {% endif %}
+
+  {% if network_supported %}
+  <div class="grid-two">
+    <article class="subpanel stack">
+      <h2>Current access</h2>
+      <div class="status-stack">
+        <div class="status-row">
+          <span>Current port</span>
+          <strong>{{ network_status.current_port }}</strong>
+        </div>
+        <div class="status-row">
+          <span>Bind host</span>
+          <strong>{{ network_status.current_host }}</strong>
+        </div>
+        <div class="status-row">
+          <span>soundmask.local</span>
+          <strong>{{ network_status.current_soundmask_url }}</strong>
+        </div>
+        <div class="status-row">
+          <span>Device IP</span>
+          <strong>{{ network_status.current_device_url }}</strong>
+        </div>
+        <div class="status-row">
+          <span>Summary</span>
+          <strong>{{ network_status.status_message }}</strong>
+        </div>
+      </div>
+    </article>
+
+    <form action="/settings/network" method="post" class="subpanel stack">
+      <h2>Change port</h2>
+      <label>
+        Web port
+        <input type="number" min="1" max="65535" name="port" value="{{ network_status.current_port }}" />
+      </label>
+      <div class="note-card">
+        <strong>Default port</strong>
+        <p class="muted">Port <code>80</code> is the easiest option because it lets people open <code>http://soundmask.local</code> without typing a port number.</p>
+      </div>
+      <div class="note-card">
+        <strong>Apply behavior</strong>
+        <p class="muted">Saving here updates the appliance config and restarts SoundMask automatically. If you choose a non-default port, reconnect using that port.</p>
+      </div>
+      <div class="button-row">
+        <button type="submit">Apply Network Change</button>
+      </div>
+    </form>
+  </div>
+  {% else %}
+  <div class="note-card">
+    <strong>Linux appliance only</strong>
+    <p class="muted">In-app port changes are available on Linux installs. During development, start SoundMask with <code>soundmask serve --port 8080</code> or your preferred port.</p>
+  </div>
+  {% endif %}
+</section>
 {% endblock %}

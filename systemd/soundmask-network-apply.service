@@ -1,0 +1,10 @@
+[Unit]
+Description=SoundMask network settings apply
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/SoundMask
+EnvironmentFile=-/etc/soundmask/soundmask.env
+ExecStart=/opt/SoundMask/.venv/bin/python -m app.network_config apply
+StandardOutput=append:/var/lib/soundmask/logs/service.log
+StandardError=append:/var/lib/soundmask/logs/service.log

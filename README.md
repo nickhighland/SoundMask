@@ -63,6 +63,8 @@ The installer will:
 
 Then open `http://soundmask.local` or `http://DEVICE-IP`
 
+If you want a different appliance web port later, open `Settings` in the app and use the `Web access port` section. SoundMask will update its Linux config and restart on the new port automatically.
+
 ## Google Calendar Setup
 
 1. Create a Google Cloud OAuth client for a desktop or web application.
@@ -149,6 +151,13 @@ Common production settings:
 - `SOUNDMASK_DATA_DIR=/var/lib/soundmask`
 - `SOUNDMASK_SESSION_SECRET=<generated-by-installer>`
 
+You can change the Linux web port from the app at `Settings` -> `Web access port`, or manually with:
+
+```bash
+sudo sed -i 's/^SOUNDMASK_PORT=.*/SOUNDMASK_PORT=8081/' /etc/soundmask/soundmask.env
+sudo systemctl restart soundmask.service
+```
+
 ## Updates
 
 - Linux installs check for updates once per day.
@@ -160,6 +169,8 @@ Common production settings:
 - Confirm `mpv` is installed and available on `PATH`
 - Confirm the selected sound file exists in the platform-specific sounds directory
 - On Linux, verify the device output with `aplay -l` and `alsamixer`
+- If `speaker-test` works in your shell but not in SoundMask, test as the service user too: `sudo -u soundmask speaker-test -c 2 -t sine -l 1`
+- Re-run `sudo bash scripts/install-linux.sh` after audio-related updates so the `soundmask` service user is added to the `audio` group
 - Test the sound from the dashboard or sounds page
 
 ## Troubleshooting Google OAuth

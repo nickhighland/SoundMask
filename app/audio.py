@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import platform
 import shutil
 import socket
@@ -43,6 +44,7 @@ class AudioManager:
                     "mpv",
                     "--no-video",
                     "--quiet",
+                    *self._mpv_audio_args(),
                     "--loop-file=inf",
                     f"--input-ipc-server={self.ipc_path}",
                     f"--volume={volume_percent}",
@@ -60,7 +62,12 @@ class AudioManager:
                     str(volume_percent),
                     str(sound_path),
                 ]
-            if self._launch_process(command, backend, sound_path):
+            if self._launch_process(
+                command,
+                backend,
+                sound_path,
+                env=self._backend_env(backend),
+            ):
                 if backend == "mpv" and self.fade_in_seconds > 0:
                     self._fade_in(volume_percent)
 
@@ -113,6 +120,7 @@ class AudioManager:
                 "mpv",
                 "--no-video",
                 "--quiet",
+                *self._mpv_audio_args(),
                 f"--volume={volume_percent}",
                 f"--length={seconds}",
                 str(sound_path),
@@ -145,6 +153,7 @@ class AudioManager:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=self._backend_env(backend),
             )
         except FileNotFoundError:
             self._last_error = self._missing_backend_message()
@@ -222,6 +231,7 @@ class AudioManager:
         command: list[str],
         backend: str,
         sound_path: Path,
+        env: dict[str, str] | None = None,
     ) -> bool:
         try:
             process = subprocess.Popen(
@@ -229,6 +239,7 @@ class AudioManager:
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.PIPE,
                 text=True,
+                env=env,
             )
         except FileNotFoundError:
             self._last_error = self._missing_backend_message()
@@ -292,6 +303,18 @@ class AudioManager:
         if platform.system().lower() == "darwin":
             return "brew install mpv"
         return "sudo apt install -y mpv"
+
+    def _mpv_audio_args(self) -> list[str]:
+        if platform.system().lower() == "linux":
+            return ["--ao=alsa"]
+        return []
+
+    def _backend_env(self, backend: str) -> dict[str, str] | None:
+        if platform.system().lower() != "linux" or backend != "ffplay":
+            return None
+        env = os.environ.copy()
+        env.setdefault("SDL_AUDIODRIVER", "alsa")
+        return env
 
     def _friendly_launch_error(self, detail: str) -> str | None:
         normalized = detail.lower()
