@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
+from app.models import TriggerBlock
 from app.models import TitleMatchRule
-from app.trigger_rules import matches_title, regex_error
+from app.trigger_rules import matches_title, merge_blocks, regex_error
 
 
 def make_rule(**overrides):
@@ -66,3 +69,26 @@ def test_whitespace_trimming():
         " Counseling appointment ",
         make_rule(match_text=" Counseling appointment "),
     )
+
+
+def test_merge_blocks_does_not_mutate_input_blocks():
+    blocks = [
+        TriggerBlock(
+            start_time=datetime(2026, 6, 30, 18, 0, tzinfo=timezone.utc),
+            end_time=datetime(2026, 6, 30, 19, 0, tzinfo=timezone.utc),
+            source="ics_title_match",
+        ),
+        TriggerBlock(
+            start_time=datetime(2026, 6, 30, 19, 0, tzinfo=timezone.utc),
+            end_time=datetime(2026, 6, 30, 20, 0, tzinfo=timezone.utc),
+            source="ics_title_match",
+        ),
+    ]
+
+    merged = merge_blocks(blocks)
+
+    assert len(merged) == 1
+    assert merged[0].start_time == datetime(2026, 6, 30, 18, 0, tzinfo=timezone.utc)
+    assert merged[0].end_time == datetime(2026, 6, 30, 20, 0, tzinfo=timezone.utc)
+    assert blocks[0].end_time == datetime(2026, 6, 30, 19, 0, tzinfo=timezone.utc)
+    assert blocks[1].end_time == datetime(2026, 6, 30, 20, 0, tzinfo=timezone.utc)

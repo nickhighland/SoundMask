@@ -106,6 +106,98 @@ def test_ics_source_syncs_local_feed():
         assert db.get_cached_blocks("ics:freebusy")
 
 
+def test_ics_title_match_sync_keeps_adjacent_appointments_distinct_in_cache():
+    with TemporaryDirectory() as temp_dir:
+        paths = AppPaths(
+            root=temp_dir,
+            database=f"{temp_dir}/SoundMask.sqlite",
+            sounds=f"{temp_dir}/sounds",
+            tokens=f"{temp_dir}/tokens",
+            logs=f"{temp_dir}/logs",
+        )
+        config = AppConfig(
+            env="test",
+            host="127.0.0.1",
+            port=8080,
+            session_secret="test-secret",
+            google_client_secret=None,
+            paths=paths,
+        )
+        for folder in (paths.root, paths.sounds, paths.tokens, paths.logs):
+            Path(folder).mkdir(parents=True, exist_ok=True)
+
+        start_time = datetime.now(timezone.utc).replace(
+            minute=0,
+            second=0,
+            microsecond=0,
+        ) + timedelta(hours=1)
+        second_start = start_time + timedelta(hours=1)
+        ics_path = Path(temp_dir) / "adjacent-title-match.ics"
+        ics_path.write_text(
+            "\n".join(
+                [
+                    "BEGIN:VCALENDAR",
+                    "VERSION:2.0",
+                    "PRODID:-//SoundMask Tests//EN",
+                    "BEGIN:VEVENT",
+                    "UID:ics-title-1",
+                    "DTSTAMP:20260629T120000Z",
+                    f"DTSTART:{start_time.strftime('%Y%m%dT%H%M%SZ')}",
+                    f"DTEND:{(start_time + timedelta(hours=1)).strftime('%Y%m%dT%H%M%SZ')}",
+                    "SUMMARY:Counseling appointment",
+                    "END:VEVENT",
+                    "BEGIN:VEVENT",
+                    "UID:ics-title-2",
+                    "DTSTAMP:20260629T120000Z",
+                    f"DTSTART:{second_start.strftime('%Y%m%dT%H%M%SZ')}",
+                    f"DTEND:{(second_start + timedelta(hours=1)).strftime('%Y%m%dT%H%M%SZ')}",
+                    "SUMMARY:Counseling appointment",
+                    "END:VEVENT",
+                    "END:VCALENDAR",
+                ]
+            ),
+            encoding="utf-8",
+        )
+
+        db = init_db(config)
+        db.set_setting("trigger_mode", "title_match")
+        db.set_setting("calendar_source", "ics")
+        db.add_title_rule(
+            enabled=True,
+            match_type="exact",
+            match_text="Counseling appointment",
+            case_sensitive=False,
+            trim_whitespace=True,
+            ignore_cancelled=True,
+            ignore_transparent=True,
+        )
+        db.add_ics_feed("Office", str(ics_path))
+
+        scheduler = SoundMaskScheduler(
+            db,
+            AudioManager(Path(paths.logs) / "mpv.sock"),
+            GoogleCalendarClient(config),
+            IcsCalendarClient(config),
+        )
+
+        scheduler.sync_cycle()
+
+        assert scheduler.last_sync_ok is True
+        assert len(scheduler.calendar_blocks) == 2
+        assert scheduler.calendar_blocks[0].start_time == start_time
+        assert scheduler.calendar_blocks[0].end_time == start_time + timedelta(hours=1)
+        assert scheduler.calendar_blocks[1].start_time == second_start
+        assert scheduler.calendar_blocks[1].end_time == second_start + timedelta(hours=1)
+        assert len(scheduler.current_blocks) == 1
+
+        cached_calendar_blocks = db.get_cached_calendar_blocks("ics:title_match")
+        assert len(cached_calendar_blocks) == 2
+        assert cached_calendar_blocks[0].start_time == start_time
+        assert cached_calendar_blocks[0].end_time == start_time + timedelta(hours=1)
+        assert cached_calendar_blocks[1].start_time == second_start
+        assert cached_calendar_blocks[1].end_time == second_start + timedelta(hours=1)
+
+
 def test_init_db_migrates_legacy_trigger_cache_schema():
     with TemporaryDirectory() as temp_dir:
         database_path = Path(temp_dir) / "SoundMask.sqlite"

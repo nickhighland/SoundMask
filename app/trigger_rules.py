@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import replace
 from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
@@ -17,13 +18,13 @@ def merge_blocks(blocks: list[TriggerBlock]) -> list[TriggerBlock]:
     if not blocks:
         return []
     ordered = sorted(blocks, key=lambda block: block.start_time)
-    merged = [ordered[0]]
+    merged = [replace(ordered[0])]
     for current in ordered[1:]:
         previous = merged[-1]
         if current.start_time <= previous.end_time:
             previous.end_time = max(previous.end_time, current.end_time)
             continue
-        merged.append(current)
+        merged.append(replace(current))
     return merged
 
 
