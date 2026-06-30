@@ -49,7 +49,7 @@ Open http://127.0.0.1:8080
 ```bash
 sudo apt update
 sudo apt install -y git
-git clone <repo-url> ~/src/SoundMask
+git clone https://github.com/nickhighland/SoundMask.git ~/src/SoundMask
 cd ~/src/SoundMask
 sudo bash scripts/install-linux.sh
 ```
