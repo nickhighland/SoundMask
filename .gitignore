@@ -5,7 +5,6 @@ __pycache__/
 .DS_Store
 .env
 data/*
-!data/.gitkeep
 *.sqlite
 .coverage
 htmlcov/
