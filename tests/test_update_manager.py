@@ -9,6 +9,7 @@ from app.update_manager import (
     INSTALL_REQUEST_FILE_NAME,
     _run_git,
     check_for_updates,
+    install_update,
     git_safe_directory,
     load_status,
     request_check,
@@ -158,3 +159,78 @@ def test_check_for_updates_preserves_repo_details_on_fetch_failure(monkeypatch):
         assert status["latest_commit"] is None
         assert status["last_error"] == "network unavailable"
         assert status["status_message"] == "Update check failed."
+
+
+def test_install_update_ignores_untracked_files(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        repo_path = Path(temp_dir)
+        command_calls: list[tuple[str, ...]] = []
+        install_runs: list[list[str]] = []
+        check_calls = {"count": 0}
+
+        monkeypatch.setattr("app.update_manager.app_root", lambda _config: repo_path)
+
+        def fake_check_for_updates(_config):
+            check_calls["count"] += 1
+            if check_calls["count"] == 1:
+                return {"last_error": None, "update_available": True}
+            return {"last_error": None, "update_available": False}
+
+        def fake_run_git(_config, *args):
+            command_calls.append(args)
+            responses = {
+                ("status", "--porcelain", "--untracked-files=no"): "",
+                ("checkout", "main"): "",
+                ("pull", "--ff-only", "origin", "main"): "",
+            }
+            return responses[args]
+
+        def fake_run_command(command: list[str], cwd: Path) -> str:
+            install_runs.append(command)
+            return ""
+
+        monkeypatch.setattr("app.update_manager.check_for_updates", fake_check_for_updates)
+        monkeypatch.setattr("app.update_manager._run_git", fake_run_git)
+        monkeypatch.setattr("app.update_manager._run_command", fake_run_command)
+
+        status = install_update(config)
+
+        assert status["last_error"] is None
+        assert ("status", "--porcelain", "--untracked-files=no") in command_calls
+        assert install_runs == [[
+            "/bin/bash",
+            str(repo_path / "scripts/install-linux.sh"),
+        ]]
+
+
+def test_install_update_reports_tracked_changes(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        repo_path = Path(temp_dir)
+        install_runs: list[list[str]] = []
+
+        monkeypatch.setattr("app.update_manager.app_root", lambda _config: repo_path)
+        monkeypatch.setattr(
+            "app.update_manager.check_for_updates",
+            lambda _config: {"last_error": None, "update_available": True},
+        )
+
+        def fake_run_git(_config, *args):
+            if args == ("status", "--porcelain", "--untracked-files=no"):
+                return " M app/update_manager.py\nM  README.md"
+            raise AssertionError(f"Unexpected git call: {args}")
+
+        def fake_run_command(command: list[str], cwd: Path) -> str:
+            install_runs.append(command)
+            return ""
+
+        monkeypatch.setattr("app.update_manager._run_git", fake_run_git)
+        monkeypatch.setattr("app.update_manager._run_command", fake_run_command)
+
+        status = install_update(config)
+
+        assert install_runs == []
+        assert "Tracked local changes are present in /opt/SoundMask." in status["last_error"]
+        assert "app/update_manager.py" in status["last_error"]
+        assert "README.md" in status["last_error"]

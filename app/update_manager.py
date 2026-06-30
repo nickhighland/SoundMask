@@ -203,6 +203,15 @@ def _try_start_install_worker(config: AppConfig) -> bool:
         return False
 
 
+def _tracked_local_changes(config: AppConfig) -> str:
+    return _run_git(
+        config,
+        "status",
+        "--porcelain",
+        "--untracked-files=no",
+    )
+
+
 def check_for_updates(config: AppConfig) -> dict[str, Any]:
     clear_check_request(config)
     repo_path = app_root(config)
@@ -294,10 +303,12 @@ def install_update(config: AppConfig) -> dict[str, Any]:
         )
         return load_status(config)
     try:
-        dirty = _run_git(config, "status", "--porcelain")
+        dirty = _tracked_local_changes(config)
         if dirty:
             raise RuntimeError(
-                "Local changes are present in /opt/SoundMask. Update aborted."
+                "Tracked local changes are present in /opt/SoundMask. "
+                "Update aborted until they are committed, stashed, or discarded.\n"
+                + "\n".join(f"  {line}" for line in dirty.splitlines() if line.strip())
             )
         _run_git(config, "checkout", DEFAULT_BRANCH)
         _run_git(config, "pull", "--ff-only", DEFAULT_REMOTE, DEFAULT_BRANCH)
