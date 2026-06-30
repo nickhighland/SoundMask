@@ -3,6 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.audio import DEFAULT_VOLUME_PERCENT
 from app.auth import login_required
 from app.schedule_views import build_schedule_view
 
@@ -66,7 +67,7 @@ async def test_sound(request: Request) -> RedirectResponse:
     if sound and sound.path.exists():
         request.app.state.audio.test(
             sound.path,
-            int(db.get_setting("volume_percent", 35)),
+            int(db.get_setting("volume_percent", DEFAULT_VOLUME_PERCENT)),
         )
     return RedirectResponse(url="/", status_code=303)
 

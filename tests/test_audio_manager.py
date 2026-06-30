@@ -4,7 +4,7 @@ from pathlib import Path
 from threading import Thread
 from unittest.mock import Mock
 
-from app.audio import AudioManager
+from app.audio import AudioManager, MAX_MPV_VOLUME_PERCENT, MAX_STANDARD_VOLUME_PERCENT
 
 
 def test_audio_diagnostics_prefers_ffplay_when_mpv_missing(monkeypatch):
@@ -82,9 +82,10 @@ def test_audio_start_uses_alsa_output_with_mpv_on_linux(monkeypatch):
     )
     captured: dict[str, object] = {}
 
-    def fake_launch(self, command, backend, sound_path, env=None):
+    def fake_launch(self, command, backend, sound_path, volume_percent, env=None):
         captured["command"] = command
         captured["backend"] = backend
+        captured["volume_percent"] = volume_percent
         captured["env"] = env
         return False
 
@@ -95,6 +96,8 @@ def test_audio_start_uses_alsa_output_with_mpv_on_linux(monkeypatch):
 
     assert captured["backend"] == "mpv"
     assert "--ao=alsa" in captured["command"]
+    assert f"--volume-max={MAX_MPV_VOLUME_PERCENT}" in captured["command"]
+    assert captured["volume_percent"] == 35
     assert captured["env"] is None
 
 
@@ -124,6 +127,50 @@ def test_audio_test_uses_alsa_sdl_driver_with_ffplay_on_linux(monkeypatch):
     assert captured["env"]["SDL_AUDIODRIVER"] == "alsa"
 
 
+def test_audio_test_clamps_ffplay_volume_to_supported_max(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    monkeypatch.setattr(
+        "app.audio.shutil.which",
+        lambda name: "/usr/bin/ffplay" if name == "ffplay" else None,
+    )
+    captured: dict[str, object] = {}
+
+    class FakeProcess:
+        def poll(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        captured["command"] = command
+        return FakeProcess()
+
+    monkeypatch.setattr("app.audio.subprocess.Popen", fake_popen)
+
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    result = manager.test(Path("/tmp/example.mp3"), 150)
+
+    assert result["ok"] is True
+    assert str(MAX_STANDARD_VOLUME_PERCENT) in captured["command"]
+
+
+def test_audio_set_volume_clamps_mpv_gain_to_boost_limit(monkeypatch):
+    captured: dict[str, object] = {}
+
+    def fake_send(self, payload):
+        captured["payload"] = payload
+
+    monkeypatch.setattr(AudioManager, "_send_command", fake_send)
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager._backend = "mpv"
+    manager._process = Mock()
+    manager._process.poll.return_value = None
+
+    manager.set_volume(200)
+
+    assert captured["payload"] == {
+        "command": ["set_property", "volume", MAX_MPV_VOLUME_PERCENT]
+    }
+
+
 def test_audio_start_ignores_mpv_control_race_during_fade_in(monkeypatch):
     monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
     monkeypatch.setattr(
@@ -131,9 +178,10 @@ def test_audio_start_ignores_mpv_control_race_during_fade_in(monkeypatch):
         lambda name: "/usr/bin/mpv" if name == "mpv" else None,
     )
 
-    def fake_launch(self, command, backend, sound_path, env=None):
+    def fake_launch(self, command, backend, sound_path, volume_percent, env=None):
         self._backend = backend
         self._current_sound = sound_path
+        self._current_volume_percent = volume_percent
         self._process = Mock()
         self._process.poll.return_value = None
         return True

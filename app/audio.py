@@ -15,12 +15,18 @@ from threading import RLock
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_VOLUME_PERCENT = 70
+MAX_MPV_VOLUME_PERCENT = 150
+MAX_STANDARD_VOLUME_PERCENT = 100
+
+
 class AudioManager:
     def __init__(self, ipc_path: Path):
         self.ipc_path = ipc_path
         self._process: subprocess.Popen[str] | None = None
         self._current_sound: Path | None = None
         self._backend: str | None = None
+        self._current_volume_percent = DEFAULT_VOLUME_PERCENT
         self._lock = RLock()
         self._last_error: str | None = None
         self.fade_in_seconds = 0
@@ -37,6 +43,10 @@ class AudioManager:
                 logger.warning(self._last_error)
                 return
             if backend == "mpv":
+                normalized_volume = self._normalized_volume_percent(
+                    volume_percent,
+                    backend,
+                )
                 self.ipc_path.parent.mkdir(parents=True, exist_ok=True)
                 if self.ipc_path.exists():
                     self.ipc_path.unlink()
@@ -47,10 +57,14 @@ class AudioManager:
                     *self._mpv_audio_args(),
                     "--loop-file=inf",
                     f"--input-ipc-server={self.ipc_path}",
-                    f"--volume={volume_percent}",
+                    f"--volume={normalized_volume}",
                     str(sound_path),
                 ]
             else:
+                normalized_volume = self._normalized_volume_percent(
+                    volume_percent,
+                    backend,
+                )
                 command = [
                     "ffplay",
                     "-nodisp",
@@ -59,17 +73,18 @@ class AudioManager:
                     "-loop",
                     "0",
                     "-volume",
-                    str(volume_percent),
+                    str(normalized_volume),
                     str(sound_path),
                 ]
             if self._launch_process(
                 command,
                 backend,
                 sound_path,
+                volume_percent=normalized_volume,
                 env=self._backend_env(backend),
             ):
                 if backend == "mpv" and self.fade_in_seconds > 0:
-                    self._fade_in(volume_percent)
+                    self._fade_in(normalized_volume)
 
     def stop(self, fade_out_seconds: int = 0) -> None:
         with self._lock:
@@ -95,10 +110,12 @@ class AudioManager:
     def set_volume(self, volume_percent: int) -> None:
         if not self.is_playing() or self._backend != "mpv":
             return
-        self._control_command(
-            {"command": ["set_property", "volume", volume_percent]},
+        normalized_volume = self._normalized_volume_percent(volume_percent, "mpv")
+        if self._control_command(
+            {"command": ["set_property", "volume", normalized_volume]},
             context="set volume",
-        )
+        ):
+            self._current_volume_percent = normalized_volume
 
     def test(
         self,
@@ -113,13 +130,14 @@ class AudioManager:
                 "ok": False,
                 "message": self._last_error,
             }
+        normalized_volume = self._normalized_volume_percent(volume_percent, backend)
         if backend == "mpv":
             command = [
                 "mpv",
                 "--no-video",
                 "--quiet",
                 *self._mpv_audio_args(),
-                f"--volume={volume_percent}",
+                f"--volume={normalized_volume}",
                 f"--length={seconds}",
                 str(sound_path),
             ]
@@ -133,7 +151,7 @@ class AudioManager:
                 "-t",
                 str(seconds),
                 "-volume",
-                str(volume_percent),
+                str(normalized_volume),
                 str(sound_path),
             ]
         else:
@@ -142,7 +160,7 @@ class AudioManager:
                 "--time",
                 str(seconds),
                 "--volume",
-                str(max(0.0, min(1.0, volume_percent / 100))),
+                str(max(0.0, min(1.0, normalized_volume / 100))),
                 str(sound_path),
             ]
         try:
@@ -203,7 +221,7 @@ class AudioManager:
         }
 
     def _fade_out(self, fade_out_seconds: int) -> None:
-        start_volume = 35
+        start_volume = self._current_volume_percent
         for step in range(fade_out_seconds * 4, -1, -1):
             volume = max(
                 0,
@@ -257,6 +275,7 @@ class AudioManager:
         command: list[str],
         backend: str,
         sound_path: Path,
+        volume_percent: int,
         env: dict[str, str] | None = None,
     ) -> bool:
         try:
@@ -284,6 +303,7 @@ class AudioManager:
         self._process = process
         self._current_sound = sound_path
         self._backend = backend
+        self._current_volume_percent = volume_percent
         self._last_error = None
         logger.info(
             "Started %s playback for %s",
@@ -332,8 +352,11 @@ class AudioManager:
 
     def _mpv_audio_args(self) -> list[str]:
         if platform.system().lower() == "linux":
-            return ["--ao=alsa"]
-        return []
+            return [
+                "--ao=alsa",
+                f"--volume-max={MAX_MPV_VOLUME_PERCENT}",
+            ]
+        return [f"--volume-max={MAX_MPV_VOLUME_PERCENT}"]
 
     def _backend_env(self, backend: str) -> dict[str, str] | None:
         if platform.system().lower() != "linux" or backend != "ffplay":
@@ -341,6 +364,12 @@ class AudioManager:
         env = os.environ.copy()
         env.setdefault("SDL_AUDIODRIVER", "alsa")
         return env
+
+    def _normalized_volume_percent(self, volume_percent: int, backend: str) -> int:
+        ceiling = (
+            MAX_MPV_VOLUME_PERCENT if backend == "mpv" else MAX_STANDARD_VOLUME_PERCENT
+        )
+        return max(0, min(int(volume_percent), ceiling))
 
     def _friendly_launch_error(self, detail: str) -> str | None:
         normalized = detail.lower()

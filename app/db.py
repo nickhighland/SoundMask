@@ -10,6 +10,7 @@ from uuid import uuid4
 
 from app.config import AppConfig
 from app.models import CalendarAccount, SoundRecord, TitleMatchRule, TriggerBlock
+from app.audio import DEFAULT_VOLUME_PERCENT
 
 
 DEFAULT_SETTINGS: dict[str, Any] = {
@@ -23,7 +24,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "active_hours_enabled": True,
     "active_hours_start": "07:00",
     "active_hours_end": "21:00",
-    "volume_percent": 35,
+    "volume_percent": DEFAULT_VOLUME_PERCENT,
     "fade_in_seconds": 2,
     "fade_out_seconds": 3,
     "manual_play_duration_minutes": 60,

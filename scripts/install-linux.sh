@@ -104,6 +104,14 @@ run_as_root install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 \
   "$DATA_ROOT/sounds" \
   "$DATA_ROOT/tokens" \
   "$DATA_ROOT/logs"
+if [[ -f "$DATA_ROOT/SoundMask.sqlite" ]]; then
+  run_as_root sqlite3 "$DATA_ROOT/SoundMask.sqlite" "
+    UPDATE settings
+    SET value = '70',
+        updated_at = strftime('%Y-%m-%dT%H:%M:%f+00:00', 'now')
+    WHERE key = 'volume_percent' AND value = '35';
+  "
+fi
 run_as_root touch \
   "$DATA_ROOT/logs/service.log" \
   "$DATA_ROOT/logs/updates.log"

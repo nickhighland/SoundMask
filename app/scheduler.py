@@ -7,7 +7,7 @@ from typing import Any
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
-from app.audio import AudioManager
+from app.audio import AudioManager, DEFAULT_VOLUME_PERCENT
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.db import Database, utcnow_iso
 from app.models import ManualState, TriggerBlock
@@ -156,8 +156,13 @@ class SoundMaskScheduler:
         active_sound = self.db.get_active_sound()
         self.audio.fade_in_seconds = int(settings.get("fade_in_seconds", 0))
         if decision.should_play and active_sound and active_sound.path.exists():
-            self.audio.start(active_sound.path, int(settings.get("volume_percent", 35)))
-            self.audio.set_volume(int(settings.get("volume_percent", 35)))
+            self.audio.start(
+                active_sound.path,
+                int(settings.get("volume_percent", DEFAULT_VOLUME_PERCENT)),
+            )
+            self.audio.set_volume(
+                int(settings.get("volume_percent", DEFAULT_VOLUME_PERCENT))
+            )
         else:
             self.audio.stop(int(settings.get("fade_out_seconds", 0)))
         self.db.set_state(
@@ -226,7 +231,10 @@ class SoundMaskScheduler:
             "trigger_mode": self.db.get_setting("trigger_mode", "fake"),
             "calendar_source": self.db.get_setting("calendar_source", "google"),
             "active_sound": active_sound.display_name if active_sound else "None selected",
-            "volume_percent": self.db.get_setting("volume_percent", 35),
+            "volume_percent": self.db.get_setting(
+                "volume_percent",
+                DEFAULT_VOLUME_PERCENT,
+            ),
             "active_block": active_block,
             "next_block": next_block,
             "last_sync_message": self.last_sync_message,

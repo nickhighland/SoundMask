@@ -3,11 +3,16 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
+from app.audio import MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 from app.network_config import load_status as load_network_status
 from app.network_config import request_port_change
 
 router = APIRouter(prefix="/settings")
+
+
+def _normalized_volume_percent(raw_value: int) -> int:
+    return max(0, min(int(raw_value), MAX_MPV_VOLUME_PERCENT))
 
 
 def _settings_context(
@@ -67,7 +72,7 @@ async def update_settings(
     db.set_setting("active_hours_end", active_hours_end)
     db.set_setting("max_event_duration_minutes", max_event_duration_minutes)
     db.set_setting("ignore_all_day_events", ignore_all_day_events == "on")
-    db.set_setting("volume_percent", volume_percent)
+    db.set_setting("volume_percent", _normalized_volume_percent(volume_percent))
     db.set_setting("fade_in_seconds", fade_in_seconds)
     db.set_setting("fade_out_seconds", fade_out_seconds)
     db.set_setting(
