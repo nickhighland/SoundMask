@@ -163,7 +163,22 @@ sudo systemctl restart soundmask.service
 - Linux installs check for updates once per day.
 - Open the `Updates` page in the app to run an immediate check or install the next available update.
 - Update installs restart SoundMask automatically after the new code is applied.
-- Manual checks run in the web app process, so the installer now grants the `soundmask` user write access to `/opt/SoundMask/.git`.
+- Manual checks run in the web app process, and the installer now registers `/opt/SoundMask` as a trusted git checkout so Git will not block update checks with a `safe.directory` warning.
+
+If you need to manually update an older appliance build that predates the `safe.directory` fix:
+
+```bash
+cd /opt/SoundMask
+sudo git config --system --add safe.directory /opt/SoundMask
+sudo git pull --ff-only origin main
+sudo bash scripts/install-linux.sh
+```
+
+If `git pull` complains about permissions inside `.git`, repair that once and retry:
+
+```bash
+sudo chown -R soundmask:soundmask /opt/SoundMask/.git
+```
 
 ## Troubleshooting Audio
 

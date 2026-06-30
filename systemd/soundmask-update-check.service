@@ -5,6 +5,8 @@ Wants=network-online.target
 
 [Service]
 Type=oneshot
+User=soundmask
+Group=soundmask
 WorkingDirectory=/opt/SoundMask
 EnvironmentFile=-/etc/soundmask/soundmask.env
 ExecStart=/opt/SoundMask/.venv/bin/python -m app.update_manager check

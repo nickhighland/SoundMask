@@ -39,6 +39,7 @@ class SoundMaskScheduler:
         self.ics_calendar_client = ics_calendar_client
         self.scheduler = BackgroundScheduler(timezone="UTC")
         self.current_blocks: list[TriggerBlock] = []
+        self.calendar_blocks: list[TriggerBlock] = []
         self.last_sync_ok = False
         self.last_sync_message = "Not synced yet"
         self.last_sync_at: str | None = None
@@ -91,6 +92,8 @@ class SoundMaskScheduler:
                 hours=self.LOOKAHEAD_HOURS
             )
             source = self._cache_source(str(calendar_source), str(trigger_mode))
+            start_buffer_minutes = int(settings.get("start_buffer_minutes", 2))
+            end_buffer_minutes = int(settings.get("end_buffer_minutes", 3))
             try:
                 if trigger_mode == "fake":
                     blocks = self._load_fake_blocks()
@@ -116,26 +119,33 @@ class SoundMaskScheduler:
                         bool(settings.get("debug_store_event_summaries", False)),
                     )
                 blocks = self._filter_blocks(blocks, settings)
-                blocks = apply_buffers(
+                self.calendar_blocks = list(blocks)
+                playback_blocks = apply_buffers(
                     merge_blocks(blocks),
-                    int(settings.get("start_buffer_minutes", 2)),
-                    int(settings.get("end_buffer_minutes", 3)),
+                    start_buffer_minutes,
+                    end_buffer_minutes,
                 )
-                self.current_blocks = blocks
+                self.current_blocks = playback_blocks
                 if trigger_mode != "fake":
-                    self.db.replace_trigger_cache(source, blocks)
+                    self.db.replace_trigger_cache(
+                        source,
+                        blocks,
+                        start_buffer_minutes,
+                        end_buffer_minutes,
+                    )
                 self.last_sync_ok = True
-                self.last_sync_message = f"Synced {len(blocks)} block(s)"
+                self.last_sync_message = f"Synced {len(self.calendar_blocks)} block(s)"
                 self.last_sync_at = utcnow_iso()
                 logger.info(
                     "Calendar sync complete: source=%s trigger_mode=%s blocks=%s",
                     calendar_source,
                     trigger_mode,
-                    len(blocks),
+                    len(self.calendar_blocks),
                 )
             except Exception as exc:
                 if trigger_mode != "fake":
-                    self.current_blocks = self.db.get_cached_blocks(source)
+                    self.current_blocks = merge_blocks(self.db.get_cached_blocks(source))
+                    self.calendar_blocks = self.db.get_cached_calendar_blocks(source)
                 self.last_sync_ok = False
                 self.last_sync_message = f"Sync warning: {exc}"
                 self.last_sync_at = utcnow_iso()

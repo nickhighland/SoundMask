@@ -1,24 +1,57 @@
 {% extends 'base.html' %}
 {% block title %}Updates | SoundMask{% endblock %}
 {% block content %}
-<section class="panel stack">
-  <div class="section-heading">
-    <div>
-      <p class="eyebrow">Updates</p>
-      <h1>Keep SoundMask current</h1>
+<section class="panel update-hero">
+  <div class="update-hero-copy stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Updates</p>
+        <h1>Keep SoundMask current</h1>
+      </div>
+      <p class="muted">Manual update checks run immediately here, and Linux installs still perform a daily background check.</p>
     </div>
-    <p class="muted">Manual update checks run immediately here, and Linux installs still perform a daily background check.</p>
+    <div class="button-row">
+      <form action="/updates/check" method="post">
+        <button type="submit">Check for Updates</button>
+      </form>
+      {% if update_status.update_available %}
+      <form action="/updates/install" method="post">
+        <button type="submit" class="secondary">Install Update</button>
+      </form>
+      {% endif %}
+    </div>
   </div>
-  <div class="button-row">
-    <form action="/updates/check" method="post">
-      <button type="submit">Check for Updates</button>
-    </form>
-    {% if update_status.update_available %}
-    <form action="/updates/install" method="post">
-      <button type="submit" class="secondary">Install Update</button>
-    </form>
-    {% endif %}
-  </div>
+  <aside class="update-hero-meta">
+    <span class="update-state-badge{% if update_status.last_error %} error{% elif update_status.install_requested %} pending{% elif update_status.update_available %} warning{% else %} ok{% endif %}">
+      {% if update_status.last_error %}
+      Attention needed
+      {% elif update_status.install_requested %}
+      Install queued
+      {% elif update_status.update_available %}
+      Update available
+      {% else %}
+      Up to date
+      {% endif %}
+    </span>
+    <div class="update-mini-grid">
+      <article class="metric-card">
+        <span>Version</span>
+        <strong>{{ update_status.current_version }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Branch</span>
+        <strong>{{ update_status.current_branch or 'Unknown' }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Checked</span>
+        <strong>{{ update_status.last_checked_at or 'Not yet' }}</strong>
+      </article>
+      <article class="metric-card">
+        <span>Source</span>
+        <strong>{{ update_status.repo_url.replace('https://github.com/', '') }}</strong>
+      </article>
+    </div>
+  </aside>
 </section>
 
 {% if update_status.check_requested_at %}
@@ -54,6 +87,10 @@
       <div class="status-row">
         <span>Current version</span>
         <strong>{{ update_status.current_version }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Current branch</span>
+        <strong>{{ update_status.current_branch or 'Unavailable' }}</strong>
       </div>
       <div class="status-row">
         <span>Current commit</span>
@@ -99,7 +136,7 @@
     </div>
     <div class="note-card">
       <strong>Source</strong>
-      <p class="muted">{{ update_status.repo_url }}</p>
+      <p class="muted"><a class="text-link" href="{{ update_status.repo_url }}">{{ update_status.repo_url }}</a></p>
     </div>
   </article>
 </section>

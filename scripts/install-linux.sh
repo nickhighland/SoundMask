@@ -28,6 +28,17 @@ run_as_root() {
   fi
 }
 
+ensure_git_safe_directory() {
+  local repo_path="$1"
+  local existing=""
+
+  existing="$(run_as_root git config --system --get-all safe.directory 2>/dev/null || true)"
+  if printf '%s\n' "$existing" | grep -Fxq "$repo_path"; then
+    return
+  fi
+  run_as_root git config --system --add safe.directory "$repo_path"
+}
+
 ensure_env_default() {
   local key="$1"
   local desired="$2"
@@ -95,6 +106,7 @@ if [[ "$SOURCE_ROOT" != "$APP_ROOT" ]]; then
 fi
 if [[ -d "$APP_ROOT/.git" ]]; then
   run_as_root chown -R "$APP_USER:$APP_GROUP" "$APP_ROOT/.git"
+  ensure_git_safe_directory "$APP_ROOT"
 fi
 cd "$APP_ROOT"
 

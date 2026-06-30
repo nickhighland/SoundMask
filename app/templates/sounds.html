@@ -60,8 +60,9 @@
         <p class="eyebrow">Library</p>
         <h2>Available tracks</h2>
       </div>
-      <span class="status-pill neutral">Current volume {{ volume_percent }}%</span>
+      <span class="status-pill neutral">Current volume {{ volume_percent }} / {{ max_volume_percent }}%</span>
     </div>
+    <p class="muted">Standard playback tops out at <code>100%</code>. Raise it above that only when you want extra <code>mpv</code> output boost.</p>
     {% if sounds %}
     <ul class="list-clean sound-list">
       {% for sound in sounds %}

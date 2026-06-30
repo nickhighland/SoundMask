@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import sqlite3
 from contextlib import contextmanager
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Iterator
 from uuid import uuid4
@@ -117,7 +117,32 @@ class Database:
                 );
                 """
             )
+            self._migrate_schema(conn)
         self.seed_defaults()
+
+    def _migrate_schema(self, conn: sqlite3.Connection) -> None:
+        trigger_cache_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(trigger_cache)").fetchall()
+        }
+        if not trigger_cache_columns:
+            return
+        if "buffered_start_time" not in trigger_cache_columns:
+            conn.execute(
+                "ALTER TABLE trigger_cache ADD COLUMN buffered_start_time TEXT"
+            )
+        if "buffered_end_time" not in trigger_cache_columns:
+            conn.execute(
+                "ALTER TABLE trigger_cache ADD COLUMN buffered_end_time TEXT"
+            )
+        conn.execute(
+            """
+            UPDATE trigger_cache
+            SET buffered_start_time = COALESCE(buffered_start_time, start_time),
+                buffered_end_time = COALESCE(buffered_end_time, end_time)
+            WHERE buffered_start_time IS NULL OR buffered_end_time IS NULL
+            """
+        )
 
     def seed_defaults(self) -> None:
         now = utcnow_iso()
@@ -472,11 +497,17 @@ class Database:
         self,
         source: str,
         blocks: list[TriggerBlock],
+        start_buffer_minutes: int,
+        end_buffer_minutes: int,
     ) -> None:
         now = utcnow_iso()
         with self.connect() as conn:
             conn.execute("DELETE FROM trigger_cache WHERE source = ?", (source,))
             for block in blocks:
+                display_start = block.display_start_time or block.start_time
+                display_end = block.display_end_time or block.end_time
+                buffered_start = display_start - timedelta(minutes=start_buffer_minutes)
+                buffered_end = display_end + timedelta(minutes=end_buffer_minutes)
                 conn.execute(
                     """
                     INSERT INTO trigger_cache(
@@ -491,10 +522,10 @@ class Database:
                         block.calendar_id,
                         block.event_id_hash,
                         block.summary_hash,
-                        block.start_time.isoformat(),
-                        block.end_time.isoformat(),
-                        block.start_time.isoformat(),
-                        block.end_time.isoformat(),
+                        display_start.isoformat(),
+                        display_end.isoformat(),
+                        buffered_start.isoformat(),
+                        buffered_end.isoformat(),
                         block.matched_rule_id,
                         now,
                         now,
@@ -505,8 +536,15 @@ class Database:
         with self.connect() as conn:
             rows = conn.execute(
                 """
-                SELECT buffered_start_time, buffered_end_time, calendar_id,
-                       event_id_hash, summary_hash, matched_rule_id, source
+                SELECT start_time,
+                       end_time,
+                       COALESCE(buffered_start_time, start_time) AS buffered_start_time,
+                       COALESCE(buffered_end_time, end_time) AS buffered_end_time,
+                       calendar_id,
+                       event_id_hash,
+                       summary_hash,
+                       matched_rule_id,
+                       source
                 FROM trigger_cache
                 WHERE source = ?
                 ORDER BY buffered_start_time ASC
@@ -517,6 +555,33 @@ class Database:
             TriggerBlock(
                 start_time=datetime.fromisoformat(row["buffered_start_time"]),
                 end_time=datetime.fromisoformat(row["buffered_end_time"]),
+                display_start_time=datetime.fromisoformat(row["start_time"]),
+                display_end_time=datetime.fromisoformat(row["end_time"]),
+                source=row["source"],
+                calendar_id=row["calendar_id"],
+                event_id_hash=row["event_id_hash"],
+                summary_hash=row["summary_hash"],
+                matched_rule_id=row["matched_rule_id"],
+            )
+            for row in rows
+        ]
+
+    def get_cached_calendar_blocks(self, source: str) -> list[TriggerBlock]:
+        with self.connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT start_time, end_time, calendar_id,
+                       event_id_hash, summary_hash, matched_rule_id, source
+                FROM trigger_cache
+                WHERE source = ?
+                ORDER BY start_time ASC
+                """,
+                (source,),
+            ).fetchall()
+        return [
+            TriggerBlock(
+                start_time=datetime.fromisoformat(row["start_time"]),
+                end_time=datetime.fromisoformat(row["end_time"]),
                 source=row["source"],
                 calendar_id=row["calendar_id"],
                 event_id_hash=row["event_id_hash"],

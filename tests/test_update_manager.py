@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
 from tempfile import TemporaryDirectory
 
 from app.config import AppConfig, AppPaths
 from app.update_manager import (
     CHECK_REQUEST_FILE_NAME,
     INSTALL_REQUEST_FILE_NAME,
+    _run_git,
     check_for_updates,
+    git_safe_directory,
     load_status,
     request_check,
     request_install,
@@ -77,3 +80,62 @@ def test_check_for_updates_clears_request_and_reports_up_to_date(monkeypatch):
         assert status["check_requested_at"] is None
         assert status["status_message"] == "SoundMask is already up to date."
         assert status["update_available"] is False
+
+
+def test_run_git_marks_repo_as_safe_directory(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        repo_path = Path(temp_dir)
+        captured: dict[str, object] = {}
+
+        monkeypatch.setattr("app.update_manager.app_root", lambda _config: repo_path)
+
+        def fake_run_command(command: list[str], cwd: Path) -> str:
+            captured["command"] = command
+            captured["cwd"] = cwd
+            return "ok"
+
+        monkeypatch.setattr("app.update_manager._run_command", fake_run_command)
+
+        result = _run_git(config, "status", "--short")
+
+        assert result == "ok"
+        assert captured["cwd"] == repo_path
+        assert captured["command"] == [
+            "git",
+            "-c",
+            f"safe.directory={git_safe_directory(config)}",
+            "status",
+            "--short",
+        ]
+
+
+def test_check_for_updates_preserves_repo_details_on_fetch_failure(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        repo_path = Path(temp_dir)
+        (repo_path / ".git").mkdir(parents=True, exist_ok=True)
+
+        monkeypatch.setattr("app.update_manager.app_root", lambda _config: repo_path)
+
+        responses = {
+            ("rev-parse", "HEAD"): "abc123def456",
+            ("rev-parse", "--abbrev-ref", "HEAD"): "main",
+            ("remote", "get-url", "origin"): "https://github.com/nickhighland/SoundMask.git",
+        }
+
+        def fake_run_git(_config, *args):
+            if args == ("fetch", "--quiet", "origin", "main"):
+                raise RuntimeError("network unavailable")
+            return responses[args]
+
+        monkeypatch.setattr("app.update_manager._run_git", fake_run_git)
+
+        status = check_for_updates(config)
+
+        assert status["current_commit"] == "abc123def456"
+        assert status["current_branch"] == "main"
+        assert status["repo_url"] == "https://github.com/nickhighland/SoundMask.git"
+        assert status["latest_commit"] is None
+        assert status["last_error"] == "network unavailable"
+        assert status["status_message"] == "Update check failed."

@@ -9,6 +9,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from starlette.middleware.sessions import SessionMiddleware
 
+from app import __version__
 from app.audio import AudioManager
 from app.auth import has_admin_password, hash_password, verify_password
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
@@ -31,6 +32,7 @@ config = get_config()
 ensure_app_dirs(config)
 configure_logging(config)
 templates = Jinja2Templates(directory="app/templates")
+templates.env.globals["app_version"] = __version__
 database = init_db(config)
 audio = AudioManager(config.paths.logs / "mpv.sock")
 calendar_client = GoogleCalendarClient(config)

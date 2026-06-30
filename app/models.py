@@ -9,6 +9,8 @@ from pathlib import Path
 class TriggerBlock:
     start_time: datetime
     end_time: datetime
+    display_start_time: datetime | None = None
+    display_end_time: datetime | None = None
     source: str = "calendar"
     is_all_day: bool = False
     calendar_id: str | None = None

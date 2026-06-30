@@ -3,7 +3,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
-from app.audio import DEFAULT_VOLUME_PERCENT
+from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 from app.schedule_views import build_schedule_view
 
@@ -27,6 +27,7 @@ async def dashboard(request: Request) -> HTMLResponse:
             "fake_blocks": db.get_state("fake_blocks", []),
             "audio_status": audio.status(),
             "audio_diagnostics": audio.diagnostics(),
+            "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
         },
     )
 

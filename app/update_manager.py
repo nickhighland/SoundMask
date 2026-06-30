@@ -34,6 +34,10 @@ def app_root(config: AppConfig) -> Path:
     return Path("/opt/SoundMask") if config.is_production else cwd
 
 
+def git_safe_directory(config: AppConfig) -> str:
+    return str(app_root(config).resolve())
+
+
 def status_path(config: AppConfig) -> Path:
     return config.paths.root / STATUS_FILE_NAME
 
@@ -74,6 +78,7 @@ def load_status(config: AppConfig) -> dict[str, Any]:
     check_request = _load_json(check_request_path(config))
     install_request = _load_json(install_request_path(config))
     payload.setdefault("repo_url", DEFAULT_REPO_URL)
+    payload.setdefault("current_branch", None)
     payload.setdefault("current_version", __version__)
     payload.setdefault("current_commit", None)
     payload.setdefault("latest_commit", None)
@@ -151,12 +156,21 @@ def _run_command(command: list[str], cwd: Path) -> str:
 
 
 def _run_git(config: AppConfig, *args: str) -> str:
-    return _run_command(["git", *args], cwd=app_root(config))
+    return _run_command(
+        [
+            "git",
+            "-c",
+            f"safe.directory={git_safe_directory(config)}",
+            *args,
+        ],
+        cwd=app_root(config),
+    )
 
 
 def check_for_updates(config: AppConfig) -> dict[str, Any]:
     clear_check_request(config)
     repo_path = app_root(config)
+    existing = load_status(config)
     base_payload = {
         "current_version": __version__,
         "last_checked_at": utcnow_iso(),
@@ -180,16 +194,20 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
         )
         return load_status(config)
 
+    repo_url = str(existing.get("repo_url") or DEFAULT_REPO_URL)
+    current_branch = existing.get("current_branch")
+    current_commit = existing.get("current_commit")
+    latest_commit = existing.get("latest_commit")
     try:
         current_commit = _run_git(config, "rev-parse", "HEAD")
         current_branch = _run_git(config, "rev-parse", "--abbrev-ref", "HEAD")
-        repo_url = _run_git(config, "remote", "get-url", DEFAULT_REMOTE)
+        repo_url = _run_git(config, "remote", "get-url", DEFAULT_REMOTE) or DEFAULT_REPO_URL
         _run_git(config, "fetch", "--quiet", DEFAULT_REMOTE, DEFAULT_BRANCH)
         latest_commit = _run_git(config, "rev-parse", "FETCH_HEAD")
         update_available = current_commit != latest_commit
         payload = {
             **base_payload,
-            "repo_url": repo_url or DEFAULT_REPO_URL,
+            "repo_url": repo_url,
             "current_branch": current_branch,
             "current_commit": current_commit,
             "latest_commit": latest_commit,
@@ -211,6 +229,10 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
         logger.warning("Update check failed: %s", exc, exc_info=True)
         payload = {
             **base_payload,
+            "repo_url": repo_url,
+            "current_branch": current_branch,
+            "current_commit": current_commit,
+            "latest_commit": latest_commit,
             "update_available": False,
             "install_supported": True,
             "last_error": str(exc),

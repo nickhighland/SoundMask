@@ -5,9 +5,9 @@
   <div class="section-heading">
     <div>
       <p class="eyebrow">Calendar</p>
-      <h1>Visual playback schedule</h1>
+      <h1>Synced appointment view</h1>
     </div>
-    <p class="muted">This view shows the synced playback windows SoundMask will follow over the next few days.</p>
+    <p class="muted">This view mirrors your appointments at their original scheduled times. Playback still honors your start and end buffers behind the scenes.</p>
   </div>
   <div class="button-row">
     <a class="button-link" href="/calendar">Open Calendar Settings</a>
@@ -18,54 +18,50 @@
   <p class="muted">Last sync status: {{ status.last_sync_message }}{% if status.last_sync_at %} at {{ status.last_sync_at }}{% endif %}</p>
 </section>
 
-<section class="calendar-shell">
-  <div class="calendar-hours">
-    <div class="calendar-hours-header">Time</div>
-    {% for slot in calendar_view.time_slots %}
-    <div class="calendar-hour-label" style="top: {{ slot.top }}%;">{{ slot.label }}</div>
-    {% endfor %}
+<section class="panel calendar-surface" style="--calendar-grid-height: {{ calendar_view.grid_height }}px;">
+  <div class="calendar-week-header">
+    <div class="calendar-timezone">{{ calendar_view.timezone_label }}</div>
+    <div class="calendar-weekdays" style="grid-template-columns: repeat({{ calendar_view.days|length }}, minmax(220px, 1fr));">
+      {% for day in calendar_view.days %}
+      <div class="calendar-weekday">
+        <span class="calendar-weekday-label">{{ day.day_label }}</span>
+        <span class="calendar-weekday-date {% if day.is_today %}current{% endif %}">{{ day.day_number }}</span>
+      </div>
+      {% endfor %}
+    </div>
   </div>
 
-  <div class="calendar-days">
-    {% for day in calendar_view.days %}
-    <article class="calendar-day-card panel">
-      <div class="calendar-day-header">
-        <div>
-          <p class="eyebrow">{{ day.day_label }}</p>
-          <h2>{{ day.date_label }}</h2>
-        </div>
-      </div>
-      <div class="calendar-track">
+  <div class="calendar-week-grid">
+    <div class="calendar-time-column">
+      {% for slot in calendar_view.time_slots %}
+      <div class="calendar-time-marker" style="top: {{ slot.top_px }}px;">{{ slot.label }}</div>
+      {% endfor %}
+    </div>
+
+    <div class="calendar-columns" style="grid-template-columns: repeat({{ calendar_view.days|length }}, minmax(220px, 1fr));">
+      {% for day in calendar_view.days %}
+      <article class="calendar-day-column {% if day.is_today %}today{% endif %}">
         {% for slot in calendar_view.time_slots %}
-        <div class="calendar-grid-line" style="top: {{ slot.top }}%;"></div>
+        <div class="calendar-grid-line" style="top: {{ slot.top_px }}px;"></div>
         {% endfor %}
-        {% for segment in day.segments %}
-        <div class="calendar-block {% if segment.active %}active{% endif %}" style="top: {{ segment.top }}%; height: {{ segment.height }}%;">
-          <strong>{{ segment.start_label }} - {{ segment.end_label }}</strong>
-          <span>{{ segment.source_label }}</span>
+        {% for event in day.events %}
+        <div class="calendar-event {% if event.active %}active{% endif %} {% if event.compact %}compact{% endif %}" style="top: {{ event.top_px }}px; height: {{ event.height_px }}px; left: calc({{ event.left_percent }}% + 4px); width: calc({{ event.width_percent }}% - 8px);">
+          <strong>{{ event.title_label }}</strong>
+          <span>{{ event.time_label }}</span>
         </div>
         {% endfor %}
-      </div>
-      {% if day.agenda_items %}
-      <ul class="list-clean compact-list">
-        {% for item in day.agenda_items %}
-        <li>
-          <div>
-            <strong>{{ item.start_label }} - {{ item.end_label }}</strong>
-            <p class="muted">{{ item.source_label }}</p>
-          </div>
-          {% if item.active %}<span class="status-pill active">Live now</span>{% endif %}
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <div class="empty-state">
-        <h3>No synced windows</h3>
-        <p class="muted">No playback blocks are currently scheduled for this day.</p>
-      </div>
-      {% endif %}
-    </article>
-    {% endfor %}
+      </article>
+      {% endfor %}
+    </div>
   </div>
 </section>
+
+{% if not calendar_view.has_blocks %}
+<section class="panel">
+  <div class="empty-state">
+    <h3>No synced appointments</h3>
+    <p class="muted">SoundMask has not synced any upcoming appointments for this view yet.</p>
+  </div>
+</section>
+{% endif %}
 {% endblock %}

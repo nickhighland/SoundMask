@@ -24,6 +24,7 @@ def _settings_context(
     config = request.app.state.config
     return {
         "settings": request.app.state.db.get_settings(),
+        "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
         "network_supported": config.is_production,
         "network_error": network_error,
         "network_status": network_status or load_network_status(config),

@@ -34,6 +34,8 @@ def apply_buffers(blocks: list[TriggerBlock], start_buffer: int, end_buffer: int
             TriggerBlock(
                 start_time=block.start_time - timedelta(minutes=start_buffer),
                 end_time=block.end_time + timedelta(minutes=end_buffer),
+                display_start_time=block.display_start_time or block.start_time,
+                display_end_time=block.display_end_time or block.end_time,
                 source=block.source,
                 is_all_day=block.is_all_day,
                 calendar_id=block.calendar_id,

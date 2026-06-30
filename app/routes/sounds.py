@@ -6,7 +6,7 @@ from pathlib import Path
 from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
-from app.audio import DEFAULT_VOLUME_PERCENT
+from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
@@ -34,6 +34,7 @@ async def sounds_page(request: Request) -> HTMLResponse:
                 "volume_percent",
                 DEFAULT_VOLUME_PERCENT,
             ),
+            "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
             "audio_status": audio.status(),
             "audio_diagnostics": audio.diagnostics(),
             "sound_message": request.session.pop("sound_message", None),

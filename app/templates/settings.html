@@ -59,8 +59,8 @@
         <h2>Audio</h2>
         <div class="form-grid">
           <label>
-            Volume percent
-            <input type="number" min="0" max="150" name="volume_percent" value="{{ settings.volume_percent }}" />
+            Volume and boost
+            <input type="number" min="0" max="{{ max_volume_percent }}" name="volume_percent" value="{{ settings.volume_percent }}" />
           </label>
           <label>
             Fade in seconds
@@ -73,7 +73,7 @@
         </div>
         <div class="note-card">
           <strong>Volume range</strong>
-          <p class="muted">SoundMask now allows up to <code>150%</code> on the preferred <code>mpv</code> backend for louder appliance playback. Fallback players still cap at their native maximum.</p>
+          <p class="muted"><code>100%</code> is standard playback. Values from <code>101%</code> to <code>{{ max_volume_percent }}%</code> use <code>mpv</code> boost for extra headroom on the appliance. Fallback players still cap at their native maximum.</p>
         </div>
         <div class="note-card">
           <strong>Diagnostics</strong>

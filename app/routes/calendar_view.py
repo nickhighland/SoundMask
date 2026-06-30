@@ -17,7 +17,7 @@ async def calendar_view_page(request: Request) -> HTMLResponse:
         request,
         "calendar_view.html",
         {
-            "calendar_view": build_calendar_view(list(scheduler.current_blocks)),
+            "calendar_view": build_calendar_view(list(scheduler.calendar_blocks)),
             "status": scheduler.get_status(),
         },
     )
