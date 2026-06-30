@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from threading import Thread
+from unittest.mock import Mock
 
 from app.audio import AudioManager
 
@@ -121,3 +122,47 @@ def test_audio_test_uses_alsa_sdl_driver_with_ffplay_on_linux(monkeypatch):
 
     assert result["ok"] is True
     assert captured["env"]["SDL_AUDIODRIVER"] == "alsa"
+
+
+def test_audio_start_ignores_mpv_control_race_during_fade_in(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    monkeypatch.setattr(
+        "app.audio.shutil.which",
+        lambda name: "/usr/bin/mpv" if name == "mpv" else None,
+    )
+
+    def fake_launch(self, command, backend, sound_path, env=None):
+        self._backend = backend
+        self._current_sound = sound_path
+        self._process = Mock()
+        self._process.poll.return_value = None
+        return True
+
+    monkeypatch.setattr(AudioManager, "_launch_process", fake_launch)
+    monkeypatch.setattr(
+        AudioManager,
+        "_send_command",
+        lambda self, payload: (_ for _ in ()).throw(FileNotFoundError("socket not ready")),
+    )
+
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager.fade_in_seconds = 1
+    manager.start(Path("/tmp/example.mp3"), 35)
+
+    assert manager._backend == "mpv"
+
+
+def test_audio_set_volume_ignores_mpv_control_race(monkeypatch):
+    monkeypatch.setattr(
+        AudioManager,
+        "_send_command",
+        lambda self, payload: (_ for _ in ()).throw(FileNotFoundError("socket not ready")),
+    )
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager._backend = "mpv"
+    manager._process = Mock()
+    manager._process.poll.return_value = None
+
+    manager.set_volume(35)
+
+    assert manager.is_playing() is True

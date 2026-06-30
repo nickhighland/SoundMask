@@ -76,10 +76,7 @@ class AudioManager:
             if not self._process:
                 return
             if self._backend == "mpv" and fade_out_seconds > 0 and self.is_playing():
-                try:
-                    self._fade_out(fade_out_seconds)
-                except OSError:
-                    pass
+                self._fade_out(fade_out_seconds)
             self._process.terminate()
             try:
                 self._process.wait(timeout=3)
@@ -98,8 +95,9 @@ class AudioManager:
     def set_volume(self, volume_percent: int) -> None:
         if not self.is_playing() or self._backend != "mpv":
             return
-        self._send_command(
-            {"command": ["set_property", "volume", volume_percent]}
+        self._control_command(
+            {"command": ["set_property", "volume", volume_percent]},
+            context="set volume",
         )
 
     def test(
@@ -211,20 +209,48 @@ class AudioManager:
                 0,
                 int(start_volume * (step / max(1, fade_out_seconds * 4))),
             )
-            self._send_command({"command": ["set_property", "volume", volume]})
+            if not self._control_command(
+                {"command": ["set_property", "volume", volume]},
+                context="fade out",
+            ):
+                break
             time.sleep(0.25)
 
     def _fade_in(self, target_volume: int) -> None:
         steps = max(1, self.fade_in_seconds * 4)
         for step in range(steps + 1):
             volume = int(target_volume * (step / steps))
-            self._send_command({"command": ["set_property", "volume", volume]})
+            if not self._control_command(
+                {"command": ["set_property", "volume", volume]},
+                context="fade in",
+            ):
+                break
             time.sleep(0.25)
 
     def _send_command(self, payload: dict[str, object]) -> None:
-        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
-            sock.connect(str(self.ipc_path))
-            sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+        deadline = time.monotonic() + 1.5
+        last_error: OSError | None = None
+        while time.monotonic() < deadline:
+            try:
+                with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+                    sock.settimeout(0.5)
+                    sock.connect(str(self.ipc_path))
+                    sock.sendall((json.dumps(payload) + "\n").encode("utf-8"))
+                    return
+            except OSError as exc:
+                last_error = exc
+                time.sleep(0.05)
+        if last_error is not None:
+            raise last_error
+        raise OSError("mpv IPC command failed before the socket became ready.")
+
+    def _control_command(self, payload: dict[str, object], *, context: str) -> bool:
+        try:
+            self._send_command(payload)
+            return True
+        except OSError as exc:
+            logger.warning("mpv control issue during %s: %s", context, exc)
+            return False
 
     def _launch_process(
         self,
