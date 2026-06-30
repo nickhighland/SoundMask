@@ -1,0 +1,10 @@
+[Unit]
+Description=SoundMask update install
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/SoundMask
+EnvironmentFile=-/etc/soundmask/soundmask.env
+ExecStart=/opt/SoundMask/.venv/bin/python -m app.update_manager install

@@ -10,9 +10,10 @@ Group=soundmask
 WorkingDirectory=/opt/SoundMask
 EnvironmentFile=-/etc/soundmask/soundmask.env
 ExecStart=/opt/SoundMask/.venv/bin/soundmask serve
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 Restart=always
 RestartSec=5
-NoNewPrivileges=true
 PrivateTmp=true
 StateDirectory=soundmask
 

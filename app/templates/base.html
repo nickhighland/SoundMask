@@ -17,9 +17,11 @@
         </div>
         <nav class="nav-list">
           <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
-          <a class="nav-link {% if request.url.path.startswith('/calendar') %}active{% endif %}" href="/calendar">Calendar</a>
+          <a class="nav-link {% if request.url.path.startswith('/calendar-view') %}active{% endif %}" href="/calendar-view">Calendar</a>
+          <a class="nav-link {% if request.url.path == '/calendar' or request.url.path.startswith('/calendar/') %}active{% endif %}" href="/calendar">Calendar Settings</a>
           <a class="nav-link {% if request.url.path.startswith('/sounds') %}active{% endif %}" href="/sounds">Sounds</a>
           <a class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}" href="/settings">Settings</a>
+          <a class="nav-link {% if request.url.path.startswith('/updates') %}active{% endif %}" href="/updates">Updates</a>
         </nav>
         <div class="sidebar-footer">
           <p class="muted small-text">On-device only. No cloud database. No microphones.</p>

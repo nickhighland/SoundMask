@@ -61,18 +61,18 @@ The installer will:
 - Generate `/etc/soundmask/soundmask.env` with a stable session secret
 - Install and restart `soundmask.service`
 
-Then open `http://DEVICE-HOSTNAME.local:8080` or `http://DEVICE-IP:8080`
+Then open `http://soundmask.local` or `http://DEVICE-IP`
 
 ## Google Calendar Setup
 
 1. Create a Google Cloud OAuth client for a desktop or web application.
 2. Enable the Google Calendar API.
 3. Place the client secret JSON in `/var/lib/soundmask/tokens/client_secret.json` on Linux or `~/.SoundMask/tokens/client_secret.json` on macOS, or set `SOUNDMASK_GOOGLE_CLIENT_SECRET`.
-4. Open the Calendar page and start OAuth.
+4. Open the Calendar Settings page and start OAuth.
 
 ## `.ics` Setup
 
-1. Open the Calendar page.
+1. Open the Calendar Settings page.
 2. Set the Calendar Source to `.ics` feed or file.
 3. Add a local path, `file://` path, `https://` URL, or `webcal://` feed.
 4. Keep `freebusy` to treat matching events as busy blocks, or switch to `title_match` to apply title rules.
@@ -145,9 +145,15 @@ sudo systemctl restart soundmask.service
 Common production settings:
 
 - `SOUNDMASK_HOST=0.0.0.0`
-- `SOUNDMASK_PORT=8080`
+- `SOUNDMASK_PORT=80`
 - `SOUNDMASK_DATA_DIR=/var/lib/soundmask`
 - `SOUNDMASK_SESSION_SECRET=<generated-by-installer>`
+
+## Updates
+
+- Linux installs check for updates once per day.
+- Open the `Updates` page in the app to request an immediate check or install the next available update.
+- Update installs restart SoundMask automatically after the new code is applied.
 
 ## Troubleshooting Audio
 

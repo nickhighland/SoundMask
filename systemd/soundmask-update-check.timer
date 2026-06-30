@@ -1,0 +1,11 @@
+[Unit]
+Description=Daily SoundMask update check
+
+[Timer]
+OnBootSec=5m
+OnUnitActiveSec=1d
+Persistent=true
+Unit=soundmask-update-check.service
+
+[Install]
+WantedBy=timers.target

@@ -187,6 +187,7 @@ class AudioManager:
             "test_backend": self._preferred_test_backend(),
             "last_error": self._last_error,
             "install_hint": self._install_hint(),
+            "audio_device_hint": self._audio_device_hint(),
         }
 
     def _fade_out(self, fade_out_seconds: int) -> None:
@@ -268,6 +269,9 @@ class AudioManager:
 
     def _launch_error_message(self, backend: str, stderr_output: str) -> str:
         detail = stderr_output.strip()
+        friendly_detail = self._friendly_launch_error(detail)
+        if friendly_detail:
+            return f"{backend} could not start playback: {friendly_detail}"
         if detail:
             return f"{backend} could not start playback: {detail}"
         return f"{backend} exited before playback started."
@@ -276,3 +280,31 @@ class AudioManager:
         if platform.system().lower() == "darwin":
             return "brew install mpv"
         return "sudo apt install -y mpv"
+
+    def _friendly_launch_error(self, detail: str) -> str | None:
+        normalized = detail.lower()
+        if not normalized:
+            return None
+        if (
+            "unknown pcm default" in normalized
+            or "cannot find card '0'" in normalized
+            or "cannot get card index for 0" in normalized
+            or "couldn't open play stream" in normalized
+        ):
+            return self._audio_device_hint()
+        if "can't load config client.conf" in normalized:
+            return (
+                "The Linux audio stack is incomplete or no default playback "
+                "device is configured. "
+                f"{self._audio_device_hint()}"
+            )
+        return None
+
+    def _audio_device_hint(self) -> str:
+        if platform.system().lower() == "linux":
+            return (
+                "No Linux audio output device is available. In a VM, enable a "
+                "virtual sound card. On Linux hardware, verify `aplay -l` and "
+                "`alsamixer`."
+            )
+        return "No usable audio output device is available."

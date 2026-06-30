@@ -1,0 +1,102 @@
+{% extends 'base.html' %}
+{% block title %}Updates | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Updates</p>
+      <h1>Keep SoundMask current</h1>
+    </div>
+    <p class="muted">SoundMask checks for updates daily on Linux installs and can install the next update from here.</p>
+  </div>
+  <div class="button-row">
+    <form action="/updates/check" method="post">
+      <button type="submit">Check for Updates</button>
+    </form>
+    {% if update_status.update_available %}
+    <form action="/updates/install" method="post">
+      <button type="submit" class="secondary">Install Update</button>
+    </form>
+    {% endif %}
+  </div>
+</section>
+
+{% if update_status.check_requested_at %}
+<section class="banner info-banner">
+  <strong>Update check requested</strong>
+  <p class="muted">SoundMask is refreshing update status now. Reload this page in a moment.</p>
+</section>
+{% endif %}
+
+{% if update_status.install_requested %}
+<section class="banner warning-banner">
+  <strong>Update install requested</strong>
+  <p class="muted">SoundMask will install the update and restart itself shortly.</p>
+</section>
+{% endif %}
+
+{% if update_status.last_error %}
+<section class="banner warning-banner">
+  <strong>Update issue</strong>
+  <p class="muted">{{ update_status.last_error }}</p>
+</section>
+{% endif %}
+
+<section class="grid-two">
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Status</p>
+        <h2>Current update state</h2>
+      </div>
+    </div>
+    <div class="status-stack">
+      <div class="status-row">
+        <span>Current version</span>
+        <strong>{{ update_status.current_version }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Current commit</span>
+        <strong>{{ update_status.current_commit[:7] if update_status.current_commit else 'Unavailable' }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Latest commit</span>
+        <strong>{{ update_status.latest_commit[:7] if update_status.latest_commit else 'Unavailable' }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Last checked</span>
+        <strong>{{ update_status.last_checked_at or 'Not checked yet' }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Last install</span>
+        <strong>{{ update_status.last_install_at or 'Never' }}</strong>
+      </div>
+      <div class="status-row">
+        <span>Summary</span>
+        <strong>{{ update_status.status_message }}</strong>
+      </div>
+    </div>
+  </article>
+
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Policy</p>
+        <h2>How updates work</h2>
+      </div>
+    </div>
+    <div class="note-card">
+      <strong>Automatic checks</strong>
+      <p class="muted">Linux installs check the GitHub repo once per day and cache the result locally.</p>
+    </div>
+    <div class="note-card">
+      <strong>Install behavior</strong>
+      <p class="muted">When an update is found, use the button above to queue installation. SoundMask will restart itself after the install completes.</p>
+    </div>
+    <div class="note-card">
+      <strong>Source</strong>
+      <p class="muted">{{ update_status.repo_url }}</p>
+    </div>
+  </article>
+</section>
+{% endblock %}

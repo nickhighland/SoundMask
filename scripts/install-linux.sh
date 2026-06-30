@@ -10,8 +10,33 @@ APP_GROUP="soundmask"
 SERVICE_NAME="soundmask.service"
 SOURCE_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
-sudo apt update
-sudo apt install -y \
+if [[ "${EUID}" -eq 0 ]]; then
+  SUDO=""
+else
+  if ! command -v sudo >/dev/null 2>&1; then
+    echo "sudo is required when running install-linux.sh as a non-root user." >&2
+    exit 1
+  fi
+  SUDO="sudo"
+fi
+
+run_as_root() {
+  if [[ -n "$SUDO" ]]; then
+    "$SUDO" "$@"
+  else
+    "$@"
+  fi
+}
+
+disable_service_if_present() {
+  local service_name="$1"
+  if run_as_root systemctl list-unit-files "$service_name" >/dev/null 2>&1; then
+    run_as_root systemctl disable --now "$service_name" >/dev/null 2>&1 || true
+  fi
+}
+
+run_as_root apt update
+run_as_root apt install -y \
   python3 \
   python3-venv \
   python3-pip \
@@ -24,7 +49,7 @@ sudo apt install -y \
   rsync
 
 if ! id -u "$APP_USER" >/dev/null 2>&1; then
-  sudo useradd \
+  run_as_root useradd \
     --system \
     --user-group \
     --create-home \
@@ -33,11 +58,11 @@ if ! id -u "$APP_USER" >/dev/null 2>&1; then
     "$APP_USER"
 fi
 
-sudo install -d -m 0755 "$APP_ROOT"
+run_as_root install -d -m 0755 "$APP_ROOT"
 if [[ "$SOURCE_ROOT" != "$APP_ROOT" ]]; then
-  sudo rsync -a \
+  run_as_root rsync -a \
+    --chown=root:root \
     --delete \
-    --exclude ".git/" \
     --exclude ".venv/" \
     --exclude "__pycache__/" \
     --exclude ".pytest_cache/" \
@@ -50,32 +75,55 @@ if [[ "$SOURCE_ROOT" != "$APP_ROOT" ]]; then
 fi
 cd "$APP_ROOT"
 
-sudo install -d -m 0755 "$CONFIG_ROOT"
-sudo install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$DATA_ROOT"
-sudo install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 \
+run_as_root install -d -m 0755 "$CONFIG_ROOT"
+run_as_root install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 "$DATA_ROOT"
+run_as_root install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 \
   "$DATA_ROOT/sounds" \
   "$DATA_ROOT/tokens" \
   "$DATA_ROOT/logs"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   session_secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"
-  sudo cp "$APP_ROOT/systemd/soundmask.env.example" "$ENV_FILE"
-  sudo sed -i "s|__SOUNDMASK_SESSION_SECRET__|$session_secret|" "$ENV_FILE"
+  run_as_root cp "$APP_ROOT/systemd/soundmask.env.example" "$ENV_FILE"
+  run_as_root sed -i "s|__SOUNDMASK_SESSION_SECRET__|$session_secret|" "$ENV_FILE"
 fi
+run_as_root chmod 0640 "$ENV_FILE"
 
-sudo python3 -m venv "$APP_ROOT/.venv"
-sudo "$APP_ROOT/.venv/bin/python" -m pip install --upgrade pip setuptools wheel
-sudo "$APP_ROOT/.venv/bin/python" -m pip install --upgrade "$APP_ROOT"
+run_as_root hostnamectl set-hostname soundmask
+disable_service_if_present apache2.service
+disable_service_if_present nginx.service
 
-sudo install -m 0644 \
+run_as_root python3 -m venv "$APP_ROOT/.venv"
+run_as_root "$APP_ROOT/.venv/bin/python" -m pip install --upgrade pip setuptools wheel
+run_as_root "$APP_ROOT/.venv/bin/python" -m pip install --upgrade "$APP_ROOT"
+
+run_as_root install -m 0644 \
   "$APP_ROOT/systemd/soundmask.service" \
   "/etc/systemd/system/$SERVICE_NAME"
-sudo systemctl daemon-reload
-sudo systemctl enable --now avahi-daemon
-sudo systemctl enable "$SERVICE_NAME"
-sudo systemctl restart "$SERVICE_NAME"
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-update-check.service" \
+  /etc/systemd/system/soundmask-update-check.service
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-update-check.timer" \
+  /etc/systemd/system/soundmask-update-check.timer
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-update-check.path" \
+  /etc/systemd/system/soundmask-update-check.path
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-update-install.service" \
+  /etc/systemd/system/soundmask-update-install.service
+run_as_root install -m 0644 \
+  "$APP_ROOT/systemd/soundmask-update-install.path" \
+  /etc/systemd/system/soundmask-update-install.path
+run_as_root systemctl daemon-reload
+run_as_root systemctl enable --now avahi-daemon
+run_as_root systemctl enable "$SERVICE_NAME"
+run_as_root systemctl restart "$SERVICE_NAME"
+run_as_root systemctl enable --now soundmask-update-check.timer
+run_as_root systemctl enable --now soundmask-update-check.path
+run_as_root systemctl enable --now soundmask-update-install.path
+run_as_root systemctl start soundmask-update-check.service
 
-device_hostname="$(hostname)"
 echo "SoundMask installed."
-echo "Open http://${device_hostname}.local:8080 or http://DEVICE-IP:8080"
+echo "Open http://soundmask.local or http://DEVICE-IP"
 echo "Edit $ENV_FILE to change host, port, data path, or Google client secret path."

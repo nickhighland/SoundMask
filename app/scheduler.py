@@ -20,6 +20,8 @@ from app.trigger_rules import (
 
 
 class SoundMaskScheduler:
+    LOOKAHEAD_HOURS = 72
+
     def __init__(
         self,
         db: Database,
@@ -81,7 +83,9 @@ class SoundMaskScheduler:
             trigger_mode = settings.get("trigger_mode", "fake")
             calendar_source = settings.get("calendar_source", "google")
             window_start = datetime.now(timezone.utc) - timedelta(minutes=10)
-            window_end = datetime.now(timezone.utc) + timedelta(hours=24)
+            window_end = datetime.now(timezone.utc) + timedelta(
+                hours=self.LOOKAHEAD_HOURS
+            )
             source = self._cache_source(str(calendar_source), str(trigger_mode))
             try:
                 if trigger_mode == "fake":

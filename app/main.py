@@ -15,9 +15,11 @@ from app.config import ensure_app_dirs, get_config
 from app.db import init_db
 from app.routes import (
     calendar_router,
+    calendar_view_router,
     dashboard_router,
     settings_router,
     sounds_router,
+    updates_router,
 )
 from app.scheduler import SoundMaskScheduler
 
@@ -58,9 +60,11 @@ app.state.calendar_client = calendar_client
 app.state.ics_calendar_client = ics_calendar_client
 
 app.include_router(dashboard_router)
+app.include_router(calendar_view_router)
 app.include_router(settings_router)
 app.include_router(sounds_router)
 app.include_router(calendar_router)
+app.include_router(updates_router)
 
 
 @app.get("/health")

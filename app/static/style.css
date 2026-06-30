@@ -319,6 +319,104 @@ code {
   gap: 0.75rem;
 }
 
+.calendar-shell {
+  display: grid;
+  grid-template-columns: 72px minmax(0, 1fr);
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.calendar-hours,
+.calendar-track {
+  position: relative;
+}
+
+.calendar-hours {
+  min-height: 720px;
+  padding-top: 4.4rem;
+}
+
+.calendar-hours-header {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.calendar-hour-label {
+  position: absolute;
+  left: 0;
+  transform: translateY(-50%);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 1rem;
+}
+
+.calendar-day-card {
+  display: grid;
+  gap: 1rem;
+  padding: 1.1rem;
+}
+
+.calendar-day-header h2 {
+  margin: 0.2rem 0 0;
+}
+
+.calendar-track {
+  min-height: 720px;
+  overflow: hidden;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.96), rgba(241, 247, 255, 0.94)),
+    linear-gradient(90deg, rgba(50, 117, 217, 0.03), transparent 40%);
+}
+
+.calendar-grid-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background: rgba(84, 122, 167, 0.14);
+}
+
+.calendar-block {
+  position: absolute;
+  left: 0.65rem;
+  right: 0.65rem;
+  min-height: 34px;
+  display: grid;
+  gap: 0.18rem;
+  padding: 0.65rem 0.75rem;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(86, 145, 235, 0.94), rgba(38, 103, 204, 0.98));
+  color: #ffffff;
+  box-shadow: 0 16px 30px rgba(38, 103, 204, 0.16);
+}
+
+.calendar-block.active {
+  background: linear-gradient(135deg, #1d5ec3, #0d4fb4);
+}
+
+.calendar-block strong,
+.calendar-block span {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.calendar-block span {
+  font-size: 0.75rem;
+  opacity: 0.9;
+}
+
 .timeline-scale {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -670,8 +768,13 @@ button {
   .hero-panel,
   .dashboard-grid,
   .grid-two,
-  .form-grid {
+  .form-grid,
+  .calendar-shell {
     grid-template-columns: 1fr;
+  }
+
+  .calendar-hours {
+    display: none;
   }
 }
 
@@ -713,5 +816,9 @@ button {
 
   .timeline-track {
     min-height: 132px;
+  }
+
+  .calendar-track {
+    min-height: 560px;
   }
 }

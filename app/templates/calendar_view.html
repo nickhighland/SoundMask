@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Calendar | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Calendar</p>
+      <h1>Visual playback schedule</h1>
+    </div>
+    <p class="muted">This view shows the synced playback windows SoundMask will follow over the next few days.</p>
+  </div>
+  <div class="button-row">
+    <a class="button-link" href="/calendar">Open Calendar Settings</a>
+    <form action="/calendar/sync-test" method="post">
+      <button type="submit">Refresh Sync</button>
+    </form>
+  </div>
+  <p class="muted">Last sync status: {{ status.last_sync_message }}{% if status.last_sync_at %} at {{ status.last_sync_at }}{% endif %}</p>
+</section>
+
+<section class="calendar-shell">
+  <div class="calendar-hours">
+    <div class="calendar-hours-header">Time</div>
+    {% for slot in calendar_view.time_slots %}
+    <div class="calendar-hour-label" style="top: {{ slot.top }}%;">{{ slot.label }}</div>
+    {% endfor %}
+  </div>
+
+  <div class="calendar-days">
+    {% for day in calendar_view.days %}
+    <article class="calendar-day-card panel">
+      <div class="calendar-day-header">
+        <div>
+          <p class="eyebrow">{{ day.day_label }}</p>
+          <h2>{{ day.date_label }}</h2>
+        </div>
+      </div>
+      <div class="calendar-track">
+        {% for slot in calendar_view.time_slots %}
+        <div class="calendar-grid-line" style="top: {{ slot.top }}%;"></div>
+        {% endfor %}
+        {% for segment in day.segments %}
+        <div class="calendar-block {% if segment.active %}active{% endif %}" style="top: {{ segment.top }}%; height: {{ segment.height }}%;">
+          <strong>{{ segment.start_label }} - {{ segment.end_label }}</strong>
+          <span>{{ segment.source_label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% if day.agenda_items %}
+      <ul class="list-clean compact-list">
+        {% for item in day.agenda_items %}
+        <li>
+          <div>
+            <strong>{{ item.start_label }} - {{ item.end_label }}</strong>
+            <p class="muted">{{ item.source_label }}</p>
+          </div>
+          {% if item.active %}<span class="status-pill active">Live now</span>{% endif %}
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <div class="empty-state">
+        <h3>No synced windows</h3>
+        <p class="muted">No playback blocks are currently scheduled for this day.</p>
+      </div>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+</section>
+{% endblock %}

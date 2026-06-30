@@ -45,3 +45,29 @@ def test_audio_start_returns_without_deadlocking_when_no_backend(monkeypatch):
     worker.join(timeout=1)
 
     assert worker.is_alive() is False
+
+
+def test_audio_launch_error_collapses_missing_linux_audio_device_noise(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+
+    message = manager._launch_error_message(
+        "mpv",
+        "\n".join(
+            [
+                "ALSA lib confmisc.c:855:(parse_card) cannot find card '0'",
+                "ALSA lib pcm.c:2722:(snd_pcm_open_noupdate) Unknown PCM default",
+                "couldn't open play stream: No such file or directory",
+            ]
+        ),
+    )
+
+    assert "No Linux audio output device is available" in message
+
+
+def test_audio_diagnostics_include_device_hint():
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+
+    diagnostics = manager.diagnostics()
+
+    assert diagnostics["audio_device_hint"] is not None

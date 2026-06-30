@@ -1,0 +1,10 @@
+[Unit]
+Description=SoundMask update install trigger
+
+[Path]
+PathExists=/var/lib/soundmask/update-install-request.json
+PathChanged=/var/lib/soundmask/update-install-request.json
+Unit=soundmask-update-install.service
+
+[Install]
+WantedBy=multi-user.target
