@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "soundmask"
+dynamic = ["version"]
+description = "Local-first calendar-driven sound masking appliance"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "Proprietary" }
+authors = [
+  { name = "Nick Highland" }
+]
+dependencies = [
+  "apscheduler>=3.10,<4.0",
+  "bcrypt>=4.1,<5.0",
+  "fastapi>=0.115,<1.0",
+  "google-api-python-client>=2.137,<3.0",
+  "google-auth>=2.33,<3.0",
+  "google-auth-oauthlib>=1.2,<2.0",
+  "icalendar>=6.1,<7.0",
+  "itsdangerous>=2.2,<3.0",
+  "jinja2>=3.1,<4.0",
+  "passlib[bcrypt]>=1.7,<2.0",
+  "python-dotenv>=1.0,<2.0",
+  "python-multipart>=0.0.9,<1.0",
+  "recurring-ical-events>=3.5,<4.0",
+  "requests>=2.32,<3.0",
+  "tzlocal>=5.2,<6.0",
+  "uvicorn[standard]>=0.30,<1.0"
+]
+
+[project.optional-dependencies]
+dev = [
+  "pytest>=8.3,<9.0"
+]
+
+[project.scripts]
+soundmask = "app.cli:main"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.dynamic]
+version = { attr = "app.__version__" }
+
+[tool.setuptools.packages.find]
+include = ["app", "app.*"]
+
+[tool.setuptools.package-data]
+app = ["static/*", "templates/*.html"]

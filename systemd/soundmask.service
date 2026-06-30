@@ -1,0 +1,20 @@
+[Unit]
+Description=SoundMask Calendar Sound Masking
+After=network-online.target sound.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=soundmask
+Group=soundmask
+WorkingDirectory=/opt/SoundMask
+EnvironmentFile=-/etc/soundmask/soundmask.env
+ExecStart=/opt/SoundMask/.venv/bin/soundmask serve
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+StateDirectory=soundmask
+
+[Install]
+WantedBy=multi-user.target

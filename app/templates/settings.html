@@ -1,0 +1,86 @@
+{% extends 'base.html' %}
+{% block title %}Settings | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Behavior</p>
+      <h1>Playback settings</h1>
+    </div>
+    <p class="muted">Fine-tune the exact windows and sound behavior SoundMask should use.</p>
+  </div>
+  <form method="post" class="stack">
+    <div class="grid-two">
+      <section class="subpanel stack">
+        <h2>Scheduling</h2>
+        <div class="form-grid">
+          <label>
+            Trigger mode
+            <select name="trigger_mode">
+              {% for mode in ['freebusy', 'title_match', 'fake'] %}
+              <option value="{{ mode }}" {% if settings.trigger_mode == mode %}selected{% endif %}>{{ mode }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
+            Sync interval seconds
+            <input type="number" min="15" name="calendar_sync_interval_seconds" value="{{ settings.calendar_sync_interval_seconds }}" />
+          </label>
+          <label>
+            Start buffer minutes
+            <input type="number" min="0" name="start_buffer_minutes" value="{{ settings.start_buffer_minutes }}" />
+          </label>
+          <label>
+            End buffer minutes
+            <input type="number" min="0" name="end_buffer_minutes" value="{{ settings.end_buffer_minutes }}" />
+          </label>
+          <label>
+            Active hours start
+            <input type="time" name="active_hours_start" value="{{ settings.active_hours_start }}" />
+          </label>
+          <label>
+            Active hours end
+            <input type="time" name="active_hours_end" value="{{ settings.active_hours_end }}" />
+          </label>
+          <label>
+            Max event duration minutes
+            <input type="number" min="15" name="max_event_duration_minutes" value="{{ settings.max_event_duration_minutes }}" />
+          </label>
+          <label>
+            Manual play minutes
+            <input type="number" min="1" name="manual_play_duration_minutes" value="{{ settings.manual_play_duration_minutes }}" />
+          </label>
+        </div>
+        <label class="checkbox"><input type="checkbox" name="active_hours_enabled" {% if settings.active_hours_enabled %}checked{% endif %} /> Enable active hours</label>
+        <label class="checkbox"><input type="checkbox" name="ignore_all_day_events" {% if settings.ignore_all_day_events %}checked{% endif %} /> Ignore all-day events</label>
+      </section>
+
+      <section class="subpanel stack">
+        <h2>Audio</h2>
+        <div class="form-grid">
+          <label>
+            Volume percent
+            <input type="number" min="0" max="100" name="volume_percent" value="{{ settings.volume_percent }}" />
+          </label>
+          <label>
+            Fade in seconds
+            <input type="number" min="0" name="fade_in_seconds" value="{{ settings.fade_in_seconds }}" />
+          </label>
+          <label>
+            Fade out seconds
+            <input type="number" min="0" name="fade_out_seconds" value="{{ settings.fade_out_seconds }}" />
+          </label>
+        </div>
+        <div class="note-card">
+          <strong>Diagnostics</strong>
+          <p class="muted">Keep debug event-summary storage off unless you are actively troubleshooting title matching.</p>
+        </div>
+        <label class="checkbox"><input type="checkbox" name="debug_store_event_summaries" {% if settings.debug_store_event_summaries %}checked{% endif %} /> Debug store event summaries</label>
+      </section>
+    </div>
+    <div class="button-row">
+      <button type="submit">Save settings</button>
+    </div>
+  </form>
+</section>
+{% endblock %}

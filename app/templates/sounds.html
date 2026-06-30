@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Sounds | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Sound Library</p>
+      <h1>Upload, preview, and route audio</h1>
+    </div>
+    <p class="muted">Browser preview works immediately. Appliance playback prefers <code>mpv</code>, with local fallbacks for testing.</p>
+  </div>
+  {% if sound_message %}
+  <section class="banner info-banner">
+    <div>
+      <strong>Sound update</strong>
+      <p class="muted">{{ sound_message }}</p>
+    </div>
+  </section>
+  {% endif %}
+  {% if audio_status.error %}
+  <section class="banner warning-banner">
+    <div>
+      <strong>Audio warning</strong>
+      <p class="muted">{{ audio_status.error }}</p>
+    </div>
+  </section>
+  {% endif %}
+</section>
+
+<section class="grid-two">
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Import</p>
+        <h2>Upload sound</h2>
+      </div>
+    </div>
+    <p class="muted">Allowed formats: WAV, MP3, OGG, FLAC.</p>
+    <form action="/sounds/upload" method="post" enctype="multipart/form-data" class="stack">
+      <input type="file" name="sound_file" accept=".wav,.mp3,.ogg,.flac,audio/*" required />
+      <button type="submit">Upload</button>
+    </form>
+    <div class="subpanel stack">
+      <h3>Playback backends</h3>
+      <ul class="list-clean compact-list">
+        <li><strong>Loop backend</strong><span>{{ audio_diagnostics.loop_backend or 'Unavailable' }}</span></li>
+        <li><strong>Test backend</strong><span>{{ audio_diagnostics.test_backend or 'Unavailable' }}</span></li>
+        <li><strong>mpv</strong><span>{% if audio_diagnostics.mpv_available %}Ready{% else %}Missing{% endif %}</span></li>
+        <li><strong>ffplay</strong><span>{% if audio_diagnostics.ffplay_available %}Ready{% else %}Missing{% endif %}</span></li>
+      </ul>
+      {% if not audio_diagnostics.mpv_available %}
+      <p class="muted">SoundMask can fall back to {{ audio_diagnostics.loop_backend or 'local test playback' }}, but <code>mpv</code> is still the preferred appliance backend: <code>{{ audio_diagnostics.install_hint }}</code>.</p>
+      {% endif %}
+    </div>
+  </article>
+
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Library</p>
+        <h2>Available tracks</h2>
+      </div>
+      <span class="status-pill neutral">Current volume {{ volume_percent }}%</span>
+    </div>
+    {% if sounds %}
+    <ul class="list-clean sound-list">
+      {% for sound in sounds %}
+      <li class="sound-card">
+        <div class="sound-card-top">
+          <div>
+            <strong>{{ sound.display_name }}</strong>
+            <p class="muted">{{ sound.mime_type or 'audio file' }}</p>
+          </div>
+          {% if sound.is_active %}
+          <span class="status-pill active">Active track</span>
+          {% endif %}
+        </div>
+        <audio controls preload="none" class="sound-preview">
+          <source src="/sounds/{{ sound.id }}/preview" type="{{ sound.mime_type or 'audio/mpeg' }}" />
+        </audio>
+        <div class="button-row compact">
+          <form action="/sounds/select" method="post">
+            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+            <button type="submit" class="secondary">Select</button>
+          </form>
+          <form action="/sounds/test" method="post">
+            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+            <button type="submit" class="secondary">Test Device Output</button>
+          </form>
+          <form action="/sounds/delete" method="post">
+            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+            <button type="submit" class="danger">Delete</button>
+          </form>
+        </div>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <h3>No sounds uploaded yet</h3>
+      <p class="muted">Upload an MP3 or WAV to preview it in the browser and route it through the appliance output.</p>
+    </div>
+    {% endif %}
+  </article>
+</section>
+{% endblock %}

@@ -1,0 +1,200 @@
+{% extends 'base.html' %}
+{% block title %}Calendar | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Calendar Routing</p>
+      <h1>Choose the source that drives playback</h1>
+    </div>
+    <p class="muted">Use Google Calendar or a local / remote <code>.ics</code> feed for the windows SoundMask should follow.</p>
+  </div>
+  <form action="/calendar/source" method="post" class="stack" id="calendar-source-form">
+    <div class="checkbox-row">
+      <label class="checkbox">
+        <input type="radio" name="calendar_source" value="google" {% if settings.calendar_source == 'google' %}checked{% endif %} />
+        Google Calendar API
+      </label>
+      <label class="checkbox">
+        <input type="radio" name="calendar_source" value="ics" {% if settings.calendar_source == 'ics' %}checked{% endif %} />
+        <code>.ics</code> feed or file
+      </label>
+    </div>
+  </form>
+  <div class="button-row">
+    <button type="submit" form="calendar-source-form">Save Source</button>
+    <form action="/calendar/sync-test" method="post"><button type="submit" class="secondary">Test Sync</button></form>
+  </div>
+  <p class="muted">Last sync status: {{ status.last_sync_message }}</p>
+</section>
+
+{% if settings.calendar_source == 'google' %}
+<section class="grid-two">
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Provider</p>
+        <h2>Google Calendar</h2>
+      </div>
+    </div>
+    <p class="muted">Scopes stay limited to the selected trigger mode.</p>
+    {% if oauth_configured %}
+    <p>OAuth client file detected.</p>
+    {% else %}
+    <p class="error">Add your Google OAuth client secret JSON to the tokens folder or set <code>SOUNDMASK_GOOGLE_CLIENT_SECRET</code>.</p>
+    {% endif %}
+    <p>Connection: {{ connected_account.account_email if connected_account and connected_account.account_email else 'Connected locally' if connected_account else 'Not connected' }}</p>
+    <div class="button-row">
+      <a class="button-link" href="/calendar/oauth/start">Connect Google Calendar</a>
+      <form action="/calendar/disconnect" method="post"><button type="submit" class="secondary">Disconnect</button></form>
+    </div>
+    <form action="/calendar/discover" method="post">
+      <button type="submit">Discover Calendars</button>
+    </form>
+    <form action="/calendar/calendar-id" method="post" class="stack">
+      <label>
+        Add calendar ID manually
+        <input type="text" name="calendar_id" placeholder="calendar-id@group.calendar.google.com" required />
+      </label>
+      <button type="submit">Save Calendar ID</button>
+    </form>
+  </article>
+
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Selection</p>
+        <h2>Selected calendars</h2>
+      </div>
+    </div>
+    {% if saved_calendars %}
+    <ul class="list-clean">
+      {% for calendar in saved_calendars %}
+      <li>
+        <form action="/calendar/calendar-toggle" method="post" class="toggle-row">
+          <input type="hidden" name="calendar_id" value="{{ calendar.calendar_id }}" />
+          <div>
+            <strong>{{ calendar.display_name or calendar.calendar_id }}</strong>
+            <p class="muted">{{ calendar.calendar_id }}</p>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" name="enabled" {% if calendar.enabled %}checked{% endif %} onchange="this.form.submit()" /> Enabled
+          </label>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No calendars saved yet.</p>
+    {% endif %}
+  </article>
+</section>
+{% else %}
+<section class="grid-two">
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Provider</p>
+        <h2><code>.ics</code> sources</h2>
+      </div>
+    </div>
+    <p class="muted">Use a local file path, <code>file://</code> path, <code>https://</code> URL, or <code>webcal://</code> feed.</p>
+    <form action="/calendar/ics-feeds" method="post" class="stack">
+      <label>
+        Label
+        <input type="text" name="label" placeholder="Office calendar" />
+      </label>
+      <label>
+        Feed location
+        <input type="text" name="location" placeholder="https://example.com/calendar.ics" required />
+      </label>
+      <button type="submit">Add <code>.ics</code> Feed</button>
+    </form>
+  </article>
+
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Selection</p>
+        <h2>Saved <code>.ics</code> feeds</h2>
+      </div>
+    </div>
+    {% if ics_feeds %}
+    <ul class="list-clean">
+      {% for feed in ics_feeds %}
+      <li class="stack">
+        <form action="/calendar/ics-feeds/toggle" method="post" class="toggle-row">
+          <input type="hidden" name="feed_id" value="{{ feed.id }}" />
+          <div>
+            <strong>{{ feed.label }}</strong>
+            <p class="muted">{{ feed.location }}</p>
+          </div>
+          <label class="checkbox">
+            <input type="checkbox" name="enabled" {% if feed.enabled %}checked{% endif %} onchange="this.form.submit()" /> Enabled
+          </label>
+        </form>
+        <form action="/calendar/ics-feeds/delete" method="post">
+          <input type="hidden" name="feed_id" value="{{ feed.id }}" />
+          <button type="submit" class="danger">Delete</button>
+        </form>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p>No <code>.ics</code> feeds saved yet.</p>
+    {% endif %}
+  </article>
+</section>
+{% endif %}
+
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Matching</p>
+      <h2>Title match rules</h2>
+    </div>
+  </div>
+  <p class="muted">Default privacy-friendly recommendation: use a generic title like Counseling appointment. These rules apply to both Google and <code>.ics</code> title matching.</p>
+  {% if regex_error %}<p class="error">Regex error: {{ regex_error }}</p>{% endif %}
+  <form action="/calendar/rules" method="post" class="stack">
+    <div class="form-grid">
+      <label>
+        Match type
+        <select name="match_type">
+          {% for match_type in ['exact', 'contains', 'starts_with', 'ends_with', 'regex'] %}
+          <option value="{{ match_type }}">{{ match_type }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label>
+        Match text
+        <input type="text" name="match_text" value="Counseling appointment" required />
+      </label>
+    </div>
+    <div class="checkbox-row">
+      <label class="checkbox"><input type="checkbox" name="enabled" checked /> Enabled</label>
+      <label class="checkbox"><input type="checkbox" name="trim_whitespace" checked /> Trim whitespace</label>
+      <label class="checkbox"><input type="checkbox" name="ignore_cancelled" checked /> Ignore cancelled</label>
+      <label class="checkbox"><input type="checkbox" name="ignore_transparent" checked /> Ignore transparent</label>
+      <label class="checkbox"><input type="checkbox" name="case_sensitive" /> Case sensitive</label>
+    </div>
+    <button type="submit">Add Rule</button>
+  </form>
+  {% if rules %}
+  <ul class="list-clean">
+    {% for rule in rules %}
+    <li class="rule-row">
+      <div>
+        <strong>{{ rule.match_type }}</strong>
+        <p class="muted">{{ rule.match_text }}</p>
+      </div>
+      <form action="/calendar/rules/delete" method="post">
+        <input type="hidden" name="rule_id" value="{{ rule.id }}" />
+        <button type="submit" class="danger">Delete</button>
+      </form>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</section>
+{% endblock %}

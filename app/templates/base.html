@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}SoundMask{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', path='/style.css') }}" />
+    <script defer src="{{ url_for('static', path='/app.js') }}"></script>
+  </head>
+  <body>
+    <div class="shell">
+      <aside class="sidebar">
+        <div class="brand-card">
+          <p class="eyebrow">SoundMask</p>
+          <h1>Private playback control</h1>
+          <p class="tagline">White-glove local scheduling for a sound masking appliance.</p>
+        </div>
+        <nav class="nav-list">
+          <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
+          <a class="nav-link {% if request.url.path.startswith('/calendar') %}active{% endif %}" href="/calendar">Calendar</a>
+          <a class="nav-link {% if request.url.path.startswith('/sounds') %}active{% endif %}" href="/sounds">Sounds</a>
+          <a class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}" href="/settings">Settings</a>
+        </nav>
+        <div class="sidebar-footer">
+          <p class="muted small-text">On-device only. No cloud database. No microphones.</p>
+          <form action="/logout" method="post">
+            <button type="submit" class="ghost">Logout</button>
+          </form>
+        </div>
+      </aside>
+      <main class="content">
+        <div class="page-frame">
+          {% block content %}{% endblock %}
+        </div>
+      </main>
+    </div>
+  </body>
+</html>
