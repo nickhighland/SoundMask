@@ -8,6 +8,7 @@ from app.update_manager import (
     CHECK_REQUEST_FILE_NAME,
     INSTALL_REQUEST_FILE_NAME,
     _run_git,
+    _try_start_install_worker,
     check_for_updates,
     install_update,
     git_safe_directory,
@@ -73,6 +74,24 @@ def test_request_install_attempts_to_start_worker_in_production(monkeypatch):
         assert status["status_message"] == (
             "Update install requested. SoundMask is starting the Linux installer now."
         )
+
+
+def test_try_start_install_worker_skips_direct_start_for_non_root(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        config.env = "production"
+        commands: list[list[str]] = []
+
+        monkeypatch.setattr("app.update_manager.os.geteuid", lambda: 1000)
+        monkeypatch.setattr(
+            "app.update_manager._run_command",
+            lambda command, cwd: commands.append(command) or "",
+        )
+
+        started = _try_start_install_worker(config)
+
+        assert started is False
+        assert commands == []
 
 
 def test_check_for_updates_clears_request_and_reports_up_to_date(monkeypatch):

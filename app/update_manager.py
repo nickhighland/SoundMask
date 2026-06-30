@@ -4,7 +4,6 @@ import argparse
 import json
 import logging
 import os
-import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -179,28 +178,22 @@ def _run_git(config: AppConfig, *args: str) -> str:
 def _try_start_install_worker(config: AppConfig) -> bool:
     if not config.is_production:
         return False
-    systemctl_bin = shutil.which("systemctl")
-    if not systemctl_bin:
-        logger.info("Update install worker could not start because systemctl is unavailable.")
-        return False
     if os.geteuid() == 0:
-        command = [systemctl_bin, "start", INSTALL_SERVICE_NAME]
-    else:
-        sudo_bin = shutil.which("sudo")
-        if not sudo_bin:
-            logger.info("Update install worker could not start because sudo is unavailable.")
+        try:
+            _run_command(["systemctl", "start", INSTALL_SERVICE_NAME], cwd=app_root(config))
+            logger.info("Update install worker started: %s", INSTALL_SERVICE_NAME)
+            return True
+        except Exception as exc:
+            logger.info(
+                "Update install worker could not be started directly by root, leaving request queued: %s",
+                exc,
+            )
             return False
-        command = [sudo_bin, "-n", systemctl_bin, "start", INSTALL_SERVICE_NAME]
-    try:
-        _run_command(command, cwd=app_root(config))
-        logger.info("Update install worker started: %s", INSTALL_SERVICE_NAME)
-        return True
-    except Exception as exc:
-        logger.info(
-            "Update install worker did not start directly, leaving request queued: %s",
-            exc,
-        )
-        return False
+    logger.info(
+        "Update install request queued for %s. The web app runs as a restricted service user, so the filesystem watcher will launch the root installer.",
+        INSTALL_SERVICE_NAME,
+    )
+    return False
 
 
 def _tracked_local_changes(config: AppConfig) -> str:
