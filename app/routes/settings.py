@@ -85,7 +85,7 @@ async def update_settings(
         debug_store_event_summaries == "on",
     )
     request.app.state.scheduler.reload_jobs()
-    request.app.state.scheduler.evaluate_playback()
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/settings", status_code=303)
 
 

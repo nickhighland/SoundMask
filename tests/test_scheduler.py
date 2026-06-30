@@ -231,3 +231,42 @@ def test_google_freebusy_uses_display_blocks_for_calendar_view(monkeypatch):
         assert len(scheduler.calendar_blocks) == 7
         assert scheduler.calendar_blocks[0].start_time == display_blocks[0].start_time
         assert len(scheduler.current_blocks) == 1
+
+
+def test_sync_window_bounds_start_at_local_day():
+    with TemporaryDirectory() as temp_dir:
+        paths = AppPaths(
+            root=temp_dir,
+            database=f"{temp_dir}/SoundMask.sqlite",
+            sounds=f"{temp_dir}/sounds",
+            tokens=f"{temp_dir}/tokens",
+            logs=f"{temp_dir}/logs",
+        )
+        config = AppConfig(
+            env="test",
+            host="127.0.0.1",
+            port=8080,
+            session_secret="test-secret",
+            google_client_secret=None,
+            paths=paths,
+        )
+        for folder in (paths.root, paths.sounds, paths.tokens, paths.logs):
+            Path(folder).mkdir(parents=True, exist_ok=True)
+
+        scheduler = SoundMaskScheduler(
+            init_db(config),
+            AudioManager(Path(paths.logs) / "mpv.sock"),
+            GoogleCalendarClient(config),
+            IcsCalendarClient(config),
+        )
+        now = datetime(2026, 6, 30, 19, 15, tzinfo=timezone.utc)
+
+        window_start, window_end = scheduler._sync_window_bounds(now=now)
+
+        assert window_start == now.astimezone().replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        ).astimezone(timezone.utc)
+        assert window_end == now + timedelta(hours=scheduler.LOOKAHEAD_HOURS)

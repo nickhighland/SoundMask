@@ -87,10 +87,7 @@ class SoundMaskScheduler:
             settings = self.db.get_settings()
             trigger_mode = settings.get("trigger_mode", "fake")
             calendar_source = settings.get("calendar_source", "google")
-            window_start = datetime.now(timezone.utc) - timedelta(minutes=10)
-            window_end = datetime.now(timezone.utc) + timedelta(
-                hours=self.LOOKAHEAD_HOURS
-            )
+            window_start, window_end = self._sync_window_bounds()
             source = self._cache_source(str(calendar_source), str(trigger_mode))
             start_buffer_minutes = int(settings.get("start_buffer_minutes", 2))
             end_buffer_minutes = int(settings.get("end_buffer_minutes", 3))
@@ -316,6 +313,21 @@ class SoundMaskScheduler:
         if trigger_mode == "fake":
             return "fake"
         return f"{calendar_source}:{trigger_mode}"
+
+    def _sync_window_bounds(
+        self,
+        now: datetime | None = None,
+    ) -> tuple[datetime, datetime]:
+        current_time = now or datetime.now(timezone.utc)
+        local_now = current_time.astimezone()
+        window_start = local_now.replace(
+            hour=0,
+            minute=0,
+            second=0,
+            microsecond=0,
+        ).astimezone(timezone.utc)
+        window_end = current_time + timedelta(hours=self.LOOKAHEAD_HOURS)
+        return window_start, window_end
 
     def _load_google_freebusy_blocks(
         self,

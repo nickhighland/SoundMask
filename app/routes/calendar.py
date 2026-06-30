@@ -110,6 +110,7 @@ async def add_calendar_id(
     calendar_id: str = Form(...),
 ) -> RedirectResponse:
     request.app.state.db.upsert_calendar(calendar_id.strip(), calendar_id.strip())
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)
 
 
@@ -121,6 +122,7 @@ async def toggle_calendar(
     enabled: str | None = Form(None),
 ) -> RedirectResponse:
     request.app.state.db.set_calendar_enabled(calendar_id, enabled == "on")
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)
 
 
@@ -135,6 +137,7 @@ async def discover_calendars(request: Request) -> RedirectResponse:
             item["display_name"],
             enabled=item.get("primary", False),
         )
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)
 
 
@@ -210,6 +213,7 @@ async def add_rule(
         rule.ignore_cancelled,
         rule.ignore_transparent,
     )
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)
 
 
@@ -220,4 +224,5 @@ async def delete_rule(
     rule_id: int = Form(...),
 ) -> RedirectResponse:
     request.app.state.db.delete_title_rule(rule_id)
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)

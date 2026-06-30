@@ -24,6 +24,7 @@ FREEBUSY_SCOPE = "https://www.googleapis.com/auth/calendar.freebusy"
 TITLE_MATCH_SCOPES = [
     "https://www.googleapis.com/auth/calendar.readonly",
 ]
+FREEBUSY_SCOPES = [FREEBUSY_SCOPE, *TITLE_MATCH_SCOPES]
 ICS_REQUEST_TIMEOUT_SECONDS = 15
 
 
@@ -38,7 +39,7 @@ class GoogleCalendarClient:
 
     def scopes_for_mode(self, trigger_mode: str) -> list[str]:
         if trigger_mode == "freebusy":
-            return [FREEBUSY_SCOPE]
+            return FREEBUSY_SCOPES
         return TITLE_MATCH_SCOPES
 
     def client_secret_path(self) -> Path:
