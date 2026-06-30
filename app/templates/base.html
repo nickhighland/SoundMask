@@ -11,12 +11,12 @@
     <div class="shell">
       <aside class="sidebar">
         <div class="brand-card">
-          <div class="brand-topline">
-            <p class="eyebrow brand-eyebrow">SoundMask</p>
-            <span class="sidebar-version">v{{ app_version }}</span>
-          </div>
-          <h1>Private playback control</h1>
-          <p class="tagline">White-glove local scheduling for a sound masking appliance.</p>
+          <img
+            class="brand-logo"
+            src="{{ url_for('static', path='/soundmask-logo.svg') }}"
+            alt="SoundMask"
+          />
+          <span class="sidebar-version">v{{ app_version }}</span>
         </div>
         <nav class="nav-list">
           <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
@@ -28,7 +28,6 @@
           <a class="nav-link {% if request.url.path.startswith('/updates') %}active{% endif %}" href="/updates">Updates</a>
         </nav>
         <div class="sidebar-footer">
-          <p class="muted small-text">On-device only. No cloud database. No microphones.</p>
           <form action="/logout" method="post">
             <button type="submit" class="ghost">Logout</button>
           </form>

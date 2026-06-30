@@ -128,6 +128,116 @@ def _layout_day_events(
     return laid_out
 
 
+def _normalized_calendar_blocks(
+    blocks: list[TriggerBlock],
+) -> list[TriggerBlock]:
+    ordered = sorted(blocks, key=appointment_start)
+    if len(ordered) < 2:
+        return ordered
+
+    replaced_indexes: set[int] = set()
+    synthetic_blocks: list[TriggerBlock] = []
+    candidates = sorted(
+        enumerate(ordered),
+        key=lambda item: (
+            -(appointment_end(item[1]) - appointment_start(item[1])).total_seconds(),
+            appointment_start(item[1]),
+        ),
+    )
+
+    for container_index, container in candidates:
+        if container_index in replaced_indexes:
+            continue
+
+        container_start = appointment_start(container)
+        container_end = appointment_end(container)
+        container_seconds = int((container_end - container_start).total_seconds())
+        if container_seconds <= 0:
+            continue
+
+        nested_by_unit: dict[int, list[tuple[int, TriggerBlock]]] = {}
+        for other_index, other in enumerate(ordered):
+            if other_index == container_index or other_index in replaced_indexes:
+                continue
+            other_start = appointment_start(other)
+            other_end = appointment_end(other)
+            other_seconds = int((other_end - other_start).total_seconds())
+            if (
+                other.source != container.source
+                or other.calendar_id != container.calendar_id
+                or other_seconds <= 0
+                or other_seconds >= container_seconds
+                or other_start < container_start
+                or other_end > container_end
+            ):
+                continue
+            if container_seconds % other_seconds != 0:
+                continue
+            nested_by_unit.setdefault(other_seconds, []).append((other_index, other))
+
+        slot_count = 0
+        chosen_unit_seconds: int | None = None
+        chosen_slots: dict[int, tuple[int, TriggerBlock]] = {}
+        for unit_seconds, nested_items in sorted(nested_by_unit.items()):
+            possible_slots = container_seconds // unit_seconds
+            if possible_slots < 4:
+                continue
+
+            covered_slots: dict[int, tuple[int, TriggerBlock]] = {}
+            aligned = True
+            for other_index, other in nested_items:
+                other_start = appointment_start(other)
+                other_end = appointment_end(other)
+                offset_start = int((other_start - container_start).total_seconds())
+                offset_end = int((other_end - container_start).total_seconds())
+                if (
+                    offset_start % unit_seconds != 0
+                    or offset_end % unit_seconds != 0
+                    or offset_end != offset_start + unit_seconds
+                ):
+                    aligned = False
+                    break
+                covered_slots[offset_start // unit_seconds] = (other_index, other)
+
+            if not aligned or len(covered_slots) < possible_slots - 1:
+                continue
+
+            slot_count = possible_slots
+            chosen_unit_seconds = unit_seconds
+            chosen_slots = covered_slots
+            break
+
+        if chosen_unit_seconds is None:
+            continue
+
+        replaced_indexes.add(container_index)
+        replaced_indexes.update(index for index, _ in chosen_slots.values())
+        for slot_index in range(slot_count):
+            slot_start = container_start + timedelta(
+                seconds=slot_index * chosen_unit_seconds
+            )
+            slot_end = slot_start + timedelta(seconds=chosen_unit_seconds)
+            exemplar = chosen_slots.get(slot_index, (container_index, container))[1]
+            synthetic_blocks.append(
+                TriggerBlock(
+                    start_time=slot_start,
+                    end_time=slot_end,
+                    source=exemplar.source,
+                    is_all_day=exemplar.is_all_day,
+                    calendar_id=exemplar.calendar_id,
+                    event_id_hash=exemplar.event_id_hash,
+                    summary_hash=exemplar.summary_hash,
+                    matched_rule_id=exemplar.matched_rule_id,
+                )
+            )
+
+    normalized = [
+        block for index, block in enumerate(ordered) if index not in replaced_indexes
+    ]
+    normalized.extend(synthetic_blocks)
+    return sorted(normalized, key=appointment_start)
+
+
 def build_schedule_view(
     blocks: list[TriggerBlock],
     now: datetime | None = None,
@@ -226,7 +336,7 @@ def build_calendar_view(
     visible_window_end = start_of_today + timedelta(days=days)
     visible_blocks = [
         block
-        for block in sorted(blocks, key=appointment_start)
+        for block in _normalized_calendar_blocks(blocks)
         if (
             appointment_end(block).astimezone(local_tz) > start_of_today
             and appointment_start(block).astimezone(local_tz) < visible_window_end

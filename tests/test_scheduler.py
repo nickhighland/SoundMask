@@ -9,6 +9,7 @@ from app.audio import AudioManager
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.config import AppConfig, AppPaths
 from app.db import init_db
+from app.models import TriggerBlock
 from app.scheduler import SoundMaskScheduler
 
 
@@ -166,3 +167,67 @@ def test_init_db_migrates_legacy_trigger_cache_schema():
         assert cached_blocks
         assert cached_blocks[0].start_time.isoformat() == "2026-06-29T13:00:00+00:00"
         assert cached_blocks[0].end_time.isoformat() == "2026-06-29T14:00:00+00:00"
+
+
+def test_google_freebusy_uses_display_blocks_for_calendar_view(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        paths = AppPaths(
+            root=temp_dir,
+            database=f"{temp_dir}/SoundMask.sqlite",
+            sounds=f"{temp_dir}/sounds",
+            tokens=f"{temp_dir}/tokens",
+            logs=f"{temp_dir}/logs",
+        )
+        config = AppConfig(
+            env="test",
+            host="127.0.0.1",
+            port=8080,
+            session_secret="test-secret",
+            google_client_secret=None,
+            paths=paths,
+        )
+        for folder in (paths.root, paths.sounds, paths.tokens, paths.logs):
+            Path(folder).mkdir(parents=True, exist_ok=True)
+
+        db = init_db(config)
+        db.set_setting("trigger_mode", "freebusy")
+        db.set_setting("calendar_source", "google")
+        db.upsert_calendar("primary", "Primary", enabled=True)
+
+        scheduler = SoundMaskScheduler(
+            db,
+            AudioManager(Path(paths.logs) / "mpv.sock"),
+            GoogleCalendarClient(config),
+            IcsCalendarClient(config),
+        )
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        playback_block = TriggerBlock(
+            start_time=now + timedelta(hours=2),
+            end_time=now + timedelta(hours=9),
+            source="freebusy",
+        )
+        display_blocks = [
+            TriggerBlock(
+                start_time=now + timedelta(hours=offset),
+                end_time=now + timedelta(hours=offset + 1),
+                source="freebusy",
+            )
+            for offset in range(2, 9)
+        ]
+
+        monkeypatch.setattr(
+            scheduler.calendar_client,
+            "fetch_freebusy_blocks",
+            lambda calendar_ids, time_min, time_max: [playback_block],
+        )
+        monkeypatch.setattr(
+            scheduler.calendar_client,
+            "fetch_display_blocks",
+            lambda calendar_ids, time_min, time_max: display_blocks,
+        )
+
+        scheduler.sync_cycle()
+
+        assert len(scheduler.calendar_blocks) == 7
+        assert scheduler.calendar_blocks[0].start_time == display_blocks[0].start_time
+        assert len(scheduler.current_blocks) == 1

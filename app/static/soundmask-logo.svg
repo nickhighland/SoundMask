@@ -1,0 +1,58 @@
+<svg
+  width="1220"
+  height="320"
+  viewBox="0 0 1220 320"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <g transform="translate(0,0)">
+    <rect x="0" y="0" width="320" height="320" rx="80" fill="#D8DDE2" />
+    <path
+      d="M160 63 C223 63 265 95 265 157 C265 222 217 261 160 276 C103 261 55 222 55 157 C55 95 97 63 160 63Z"
+      fill="#FFFFFF"
+      opacity="0.98"
+    />
+    <path
+      d="M160 91 C205 91 234 114 234 159 C234 205 201 233 160 247 C119 233 86 205 86 159 C86 114 115 91 160 91Z"
+      fill="#F2F4F6"
+    />
+    <path
+      d="M98 164 C122 142 144 142 160 164 C176 186 198 186 222 164"
+      stroke="#AEB7C0"
+      stroke-width="18"
+      stroke-linecap="round"
+      fill="none"
+    />
+    <path
+      d="M103 129 C112 116 123 116 132 129 C141 142 152 142 161 129 C170 116 181 116 190 129 C199 142 210 142 220 129"
+      stroke="#AEB7C0"
+      stroke-width="12"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.9"
+    />
+    <path
+      d="M104 205 C114 193 125 193 134 205 C143 217 154 217 163 205 C172 193 183 193 192 205 C201 217 212 217 221 205"
+      stroke="#AEB7C0"
+      stroke-width="12"
+      stroke-linecap="round"
+      fill="none"
+      opacity="0.9"
+    />
+    <circle cx="118" cy="164" r="7" fill="#AEB7C0" />
+    <circle cx="202" cy="164" r="7" fill="#AEB7C0" />
+  </g>
+  <g transform="translate(390,78)">
+    <text
+      x="0"
+      y="88"
+      font-family="Avenir Next, Helvetica, Arial, sans-serif"
+      font-size="108"
+      font-weight="700"
+      letter-spacing="-3"
+      fill="#D8DDE2"
+    >
+      Sound<tspan fill="#F2F4F6">Mask</tspan>
+    </text>
+  </g>
+</svg>

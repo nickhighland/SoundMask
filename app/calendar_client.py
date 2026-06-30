@@ -127,6 +127,60 @@ class GoogleCalendarClient:
                 )
         return blocks
 
+    def fetch_display_blocks(
+        self,
+        calendar_ids: list[str],
+        time_min: datetime,
+        time_max: datetime,
+    ) -> list[TriggerBlock]:
+        service = build(
+            "calendar",
+            "v3",
+            credentials=self.credentials("title_match"),
+            cache_discovery=False,
+        )
+        fields = "nextPageToken,items(id,summary,start,end,status,transparency)"
+        blocks: list[TriggerBlock] = []
+        for calendar_id in calendar_ids:
+            page_token: str | None = None
+            while True:
+                response = service.events().list(
+                    calendarId=calendar_id,
+                    timeMin=time_min.isoformat(),
+                    timeMax=time_max.isoformat(),
+                    singleEvents=True,
+                    orderBy="startTime",
+                    pageToken=page_token,
+                    fields=fields,
+                ).execute()
+                for event in response.get("items", []):
+                    if event.get("status") == "cancelled":
+                        continue
+                    if event.get("transparency") == "transparent":
+                        continue
+                    start_value = event.get("start", {}).get("dateTime")
+                    end_value = event.get("end", {}).get("dateTime")
+                    if not start_value or not end_value:
+                        continue
+                    blocks.append(
+                        TriggerBlock(
+                            start_time=datetime.fromisoformat(start_value),
+                            end_time=datetime.fromisoformat(end_value),
+                            source="freebusy",
+                            calendar_id=calendar_id,
+                            event_id_hash=self._hash_value(event.get("id", "")),
+                            summary_hash=(
+                                self._hash_value(event.get("summary", ""))
+                                if event.get("summary")
+                                else None
+                            ),
+                        )
+                    )
+                page_token = response.get("nextPageToken")
+                if not page_token:
+                    break
+        return blocks
+
     def fetch_title_match_blocks(
         self,
         calendar_ids: list[str],

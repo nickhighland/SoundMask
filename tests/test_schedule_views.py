@@ -93,3 +93,62 @@ def test_build_calendar_view_splits_overlapping_events_into_columns():
     assert first_event["width_percent"] == 50.0
     assert second_event["width_percent"] == 50.0
     assert second_event["left_percent"] == 50.0
+
+
+def test_build_calendar_view_prefers_hour_slots_over_aggregate_block():
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    long_block_start = now + timedelta(hours=2)
+    blocks = [
+        TriggerBlock(
+            start_time=long_block_start,
+            end_time=long_block_start + timedelta(hours=7),
+            source="freebusy",
+        ),
+    ]
+    for hour in range(3, 9):
+        blocks.append(
+            TriggerBlock(
+                start_time=now + timedelta(hours=hour),
+                end_time=now + timedelta(hours=hour + 1),
+                source="freebusy",
+            )
+    )
+
+    view = build_calendar_view(blocks, now=now, days=1)
+
+    assert [event["time_label"] for event in view["days"][0]["events"]] == [
+        appointment_time_range_label(
+            (now + timedelta(hours=hour)).astimezone(),
+            (now + timedelta(hours=hour + 1)).astimezone(),
+        )
+        for hour in range(2, 9)
+    ]
+
+
+def test_build_calendar_view_keeps_distinct_calendar_overlap():
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    long_block_start = now + timedelta(hours=2)
+    blocks = [
+        TriggerBlock(
+            start_time=long_block_start,
+            end_time=long_block_start + timedelta(hours=7),
+            source="freebusy",
+            calendar_id="primary",
+        ),
+    ]
+    for hour in range(3, 9):
+        blocks.append(
+            TriggerBlock(
+                start_time=now + timedelta(hours=hour),
+                end_time=now + timedelta(hours=hour + 1),
+                source="freebusy",
+                calendar_id="secondary",
+            )
+        )
+
+    view = build_calendar_view(blocks, now=now, days=1)
+
+    assert view["days"][0]["events"][0]["time_label"] == appointment_time_range_label(
+        long_block_start.astimezone(),
+        (long_block_start + timedelta(hours=7)).astimezone(),
+    )

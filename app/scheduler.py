@@ -95,6 +95,7 @@ class SoundMaskScheduler:
             start_buffer_minutes = int(settings.get("start_buffer_minutes", 2))
             end_buffer_minutes = int(settings.get("end_buffer_minutes", 3))
             try:
+                calendar_blocks: list[TriggerBlock] | None = None
                 if trigger_mode == "fake":
                     blocks = self._load_fake_blocks()
                 elif calendar_source == "ics":
@@ -105,11 +106,18 @@ class SoundMaskScheduler:
                         settings,
                     )
                 elif trigger_mode == "freebusy":
-                    blocks = self.calendar_client.fetch_freebusy_blocks(
-                        self.db.enabled_calendar_ids(),
-                        window_start,
-                        window_end,
-                    )
+                    if calendar_source == "google":
+                        blocks, calendar_blocks = self._load_google_freebusy_blocks(
+                            window_start,
+                            window_end,
+                            settings,
+                        )
+                    else:
+                        blocks = self.calendar_client.fetch_freebusy_blocks(
+                            self.db.enabled_calendar_ids(),
+                            window_start,
+                            window_end,
+                        )
                 else:
                     blocks = self.calendar_client.fetch_title_match_blocks(
                         self.db.enabled_calendar_ids(),
@@ -118,8 +126,10 @@ class SoundMaskScheduler:
                         self.db.get_title_rules(),
                         bool(settings.get("debug_store_event_summaries", False)),
                     )
-                blocks = self._filter_blocks(blocks, settings)
-                self.calendar_blocks = list(blocks)
+                if calendar_blocks is None:
+                    blocks = self._filter_blocks(blocks, settings)
+                    calendar_blocks = list(blocks)
+                self.calendar_blocks = list(calendar_blocks)
                 playback_blocks = apply_buffers(
                     merge_blocks(blocks),
                     start_buffer_minutes,
@@ -306,6 +316,33 @@ class SoundMaskScheduler:
         if trigger_mode == "fake":
             return "fake"
         return f"{calendar_source}:{trigger_mode}"
+
+    def _load_google_freebusy_blocks(
+        self,
+        window_start: datetime,
+        window_end: datetime,
+        settings: dict[str, Any],
+    ) -> tuple[list[TriggerBlock], list[TriggerBlock]]:
+        try:
+            display_blocks = self.calendar_client.fetch_display_blocks(
+                self.db.enabled_calendar_ids(),
+                window_start,
+                window_end,
+            )
+            filtered_blocks = self._filter_blocks(display_blocks, settings)
+            return (filtered_blocks, list(filtered_blocks))
+        except Exception as exc:
+            logger.info(
+                "Google freebusy detail fetch failed, using merged busy windows: %s",
+                exc,
+            )
+        busy_blocks = self.calendar_client.fetch_freebusy_blocks(
+            self.db.enabled_calendar_ids(),
+            window_start,
+            window_end,
+        )
+        filtered_blocks = self._filter_blocks(busy_blocks, settings)
+        return (filtered_blocks, list(filtered_blocks))
 
     def _load_ics_blocks(
         self,
