@@ -85,6 +85,7 @@ async def oauth_callback(request: Request) -> RedirectResponse:
         str(request.app.state.calendar_client.token_path),
         account_email,
     )
+    request.app.state.scheduler.sync_cycle()
     return RedirectResponse(url="/calendar", status_code=303)
 
 
