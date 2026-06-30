@@ -68,6 +68,7 @@ run_as_root apt install -y \
   python3 \
   python3-venv \
   python3-pip \
+  sudo \
   ffmpeg \
   mpv \
   sqlite3 \
@@ -130,6 +131,15 @@ run_as_root touch \
 run_as_root chown "$APP_USER:$APP_GROUP" \
   "$DATA_ROOT/logs/service.log" \
   "$DATA_ROOT/logs/updates.log"
+
+sudoers_temp="$(mktemp)"
+cat >"$sudoers_temp" <<EOF
+$APP_USER ALL=(root) NOPASSWD: /bin/systemctl start soundmask-update-install.service, /usr/bin/systemctl start soundmask-update-install.service
+EOF
+run_as_root visudo -cf "$sudoers_temp"
+run_as_root install -d -m 0750 /etc/sudoers.d
+run_as_root install -m 0440 "$sudoers_temp" /etc/sudoers.d/soundmask-update-install
+rm -f "$sudoers_temp"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   session_secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"

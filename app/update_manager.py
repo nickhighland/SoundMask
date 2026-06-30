@@ -3,6 +3,8 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
+import shutil
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -19,6 +21,7 @@ INSTALL_REQUEST_FILE_NAME = "update-install-request.json"
 DEFAULT_REMOTE = "origin"
 DEFAULT_BRANCH = "main"
 DEFAULT_REPO_URL = "https://github.com/nickhighland/SoundMask"
+INSTALL_SERVICE_NAME = "soundmask-update-install.service"
 
 logger = logging.getLogger(__name__)
 
@@ -119,15 +122,21 @@ def request_check(config: AppConfig) -> dict[str, Any]:
 
 
 def request_install(config: AppConfig) -> dict[str, Any]:
+    clear_install_request(config)
     payload = {"requested_at": utcnow_iso()}
     _write_json(install_request_path(config), payload)
     logger.info("Update install requested.")
+    started = _try_start_install_worker(config)
     save_status(
         config,
         {
             "install_requested_at": payload["requested_at"],
             "last_error": None,
-            "status_message": "Update install requested.",
+            "status_message": (
+                "Update install requested. SoundMask is starting the Linux installer now."
+                if started
+                else "Update install requested. Waiting for the Linux update worker."
+            ),
         },
     )
     return load_status(config)
@@ -165,6 +174,33 @@ def _run_git(config: AppConfig, *args: str) -> str:
         ],
         cwd=app_root(config),
     )
+
+
+def _try_start_install_worker(config: AppConfig) -> bool:
+    if not config.is_production:
+        return False
+    systemctl_bin = shutil.which("systemctl")
+    if not systemctl_bin:
+        logger.info("Update install worker could not start because systemctl is unavailable.")
+        return False
+    if os.geteuid() == 0:
+        command = [systemctl_bin, "start", INSTALL_SERVICE_NAME]
+    else:
+        sudo_bin = shutil.which("sudo")
+        if not sudo_bin:
+            logger.info("Update install worker could not start because sudo is unavailable.")
+            return False
+        command = [sudo_bin, "-n", systemctl_bin, "start", INSTALL_SERVICE_NAME]
+    try:
+        _run_command(command, cwd=app_root(config))
+        logger.info("Update install worker started: %s", INSTALL_SERVICE_NAME)
+        return True
+    except Exception as exc:
+        logger.info(
+            "Update install worker did not start directly, leaving request queued: %s",
+            exc,
+        )
+        return False
 
 
 def check_for_updates(config: AppConfig) -> dict[str, Any]:

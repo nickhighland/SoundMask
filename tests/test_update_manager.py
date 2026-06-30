@@ -55,6 +55,25 @@ def test_request_install_creates_marker_file():
         assert status["install_requested"] is True
 
 
+def test_request_install_attempts_to_start_worker_in_production(monkeypatch):
+    with TemporaryDirectory() as temp_dir:
+        config = make_config(temp_dir)
+        config.env = "production"
+        started: list[bool] = []
+
+        monkeypatch.setattr(
+            "app.update_manager._try_start_install_worker",
+            lambda _config: started.append(True) or True,
+        )
+
+        status = request_install(config)
+
+        assert started == [True]
+        assert status["status_message"] == (
+            "Update install requested. SoundMask is starting the Linux installer now."
+        )
+
+
 def test_check_for_updates_clears_request_and_reports_up_to_date(monkeypatch):
     with TemporaryDirectory() as temp_dir:
         config = make_config(temp_dir)

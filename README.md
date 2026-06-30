@@ -164,6 +164,7 @@ sudo systemctl restart soundmask.service
 - Open the `Updates` page in the app to run an immediate check or install the next available update.
 - Update installs restart SoundMask automatically after the new code is applied.
 - Manual checks run in the web app process, and the installer now registers `/opt/SoundMask` as a trusted git checkout so Git will not block update checks with a `safe.directory` warning.
+- Current Linux builds also grant the `soundmask` service user permission to start the root-owned update installer directly, so the `Install Update` button does not have to rely only on a filesystem watcher.
 
 If you need to manually update an older appliance build that predates the `safe.directory` fix:
 
@@ -179,6 +180,8 @@ If `git pull` complains about permissions inside `.git`, repair that once and re
 ```bash
 sudo chown -R soundmask:soundmask /opt/SoundMask/.git
 ```
+
+If the `Install Update` button stays stuck on `Install queued`, manually update once with the commands above so the appliance picks up the direct-start update fix.
 
 ## Troubleshooting Audio
 
