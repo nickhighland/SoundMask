@@ -7,7 +7,7 @@
       <p class="eyebrow">Updates</p>
       <h1>Keep SoundMask current</h1>
     </div>
-    <p class="muted">SoundMask checks for updates daily on Linux installs and can install the next update from here.</p>
+    <p class="muted">Manual update checks run immediately here, and Linux installs still perform a daily background check.</p>
   </div>
   <div class="button-row">
     <form action="/updates/check" method="post">
@@ -22,9 +22,9 @@
 </section>
 
 {% if update_status.check_requested_at %}
-<section class="banner info-banner">
-  <strong>Update check requested</strong>
-  <p class="muted">SoundMask is refreshing update status now. Reload this page in a moment.</p>
+<section class="banner warning-banner">
+  <strong>Background update check still pending</strong>
+  <p class="muted">A queued update-check request has not been cleared yet. If this lingers, review the Logs page or re-run the Linux installer to refresh the update worker units.</p>
 </section>
 {% endif %}
 
@@ -88,6 +88,10 @@
     <div class="note-card">
       <strong>Automatic checks</strong>
       <p class="muted">Linux installs check the GitHub repo once per day and cache the result locally.</p>
+    </div>
+    <div class="note-card">
+      <strong>Manual checks</strong>
+      <p class="muted">The button above performs an immediate fetch and refreshes the status on this page after the request completes.</p>
     </div>
     <div class="note-card">
       <strong>Install behavior</strong>

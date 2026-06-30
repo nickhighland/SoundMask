@@ -93,6 +93,9 @@ if [[ "$SOURCE_ROOT" != "$APP_ROOT" ]]; then
     --exclude "data/" \
     "$SOURCE_ROOT/" "$APP_ROOT/"
 fi
+if [[ -d "$APP_ROOT/.git" ]]; then
+  run_as_root chown -R "$APP_USER:$APP_GROUP" "$APP_ROOT/.git"
+fi
 cd "$APP_ROOT"
 
 run_as_root install -d -m 0755 "$CONFIG_ROOT"

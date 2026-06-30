@@ -4,7 +4,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.auth import login_required
-from app.update_manager import load_status, request_check, request_install
+from app.update_manager import check_for_updates, load_status, request_install
 
 router = APIRouter(prefix="/updates")
 
@@ -24,7 +24,7 @@ async def updates_page(request: Request) -> HTMLResponse:
 @router.post("/check")
 @login_required
 async def queue_update_check(request: Request) -> RedirectResponse:
-    request_check(request.app.state.config)
+    check_for_updates(request.app.state.config)
     return RedirectResponse(url="/updates", status_code=303)
 
 

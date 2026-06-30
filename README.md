@@ -161,8 +161,9 @@ sudo systemctl restart soundmask.service
 ## Updates
 
 - Linux installs check for updates once per day.
-- Open the `Updates` page in the app to request an immediate check or install the next available update.
+- Open the `Updates` page in the app to run an immediate check or install the next available update.
 - Update installs restart SoundMask automatically after the new code is applied.
+- Manual checks run in the web app process, so the installer now grants the `soundmask` user write access to `/opt/SoundMask/.git`.
 
 ## Troubleshooting Audio
 
