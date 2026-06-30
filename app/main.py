@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Form, Request
@@ -13,10 +14,12 @@ from app.auth import has_admin_password, hash_password, verify_password
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.config import ensure_app_dirs, get_config
 from app.db import init_db
+from app.logging_setup import configure_logging
 from app.routes import (
     calendar_router,
     calendar_view_router,
     dashboard_router,
+    logs_router,
     settings_router,
     sounds_router,
     updates_router,
@@ -26,18 +29,22 @@ from app.scheduler import SoundMaskScheduler
 
 config = get_config()
 ensure_app_dirs(config)
+configure_logging(config)
 templates = Jinja2Templates(directory="app/templates")
 database = init_db(config)
 audio = AudioManager(config.paths.logs / "mpv.sock")
 calendar_client = GoogleCalendarClient(config)
 ics_calendar_client = IcsCalendarClient(config)
 scheduler = SoundMaskScheduler(database, audio, calendar_client, ics_calendar_client)
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(application: FastAPI):
+    logger.info("SoundMask starting up.")
     scheduler.start()
     yield
+    logger.info("SoundMask shutting down.")
     scheduler.shutdown()
 
 
@@ -61,6 +68,7 @@ app.state.ics_calendar_client = ics_calendar_client
 
 app.include_router(dashboard_router)
 app.include_router(calendar_view_router)
+app.include_router(logs_router)
 app.include_router(settings_router)
 app.include_router(sounds_router)
 app.include_router(calendar_router)

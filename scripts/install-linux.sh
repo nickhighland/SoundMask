@@ -81,6 +81,12 @@ run_as_root install -d -o "$APP_USER" -g "$APP_GROUP" -m 0750 \
   "$DATA_ROOT/sounds" \
   "$DATA_ROOT/tokens" \
   "$DATA_ROOT/logs"
+run_as_root touch \
+  "$DATA_ROOT/logs/service.log" \
+  "$DATA_ROOT/logs/updates.log"
+run_as_root chown "$APP_USER:$APP_GROUP" \
+  "$DATA_ROOT/logs/service.log" \
+  "$DATA_ROOT/logs/updates.log"
 
 if [[ ! -f "$ENV_FILE" ]]; then
   session_secret="$(python3 -c 'import secrets; print(secrets.token_urlsafe(32))')"

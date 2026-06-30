@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import platform
 import shutil
 import socket
@@ -8,6 +9,9 @@ import subprocess
 import time
 from pathlib import Path
 from threading import RLock
+
+
+logger = logging.getLogger(__name__)
 
 
 class AudioManager:
@@ -29,6 +33,7 @@ class AudioManager:
             backend = self._preferred_loop_backend()
             if not backend:
                 self._last_error = self._missing_backend_message()
+                logger.warning(self._last_error)
                 return
             if backend == "mpv":
                 self.ipc_path.parent.mkdir(parents=True, exist_ok=True)
@@ -243,6 +248,11 @@ class AudioManager:
         self._current_sound = sound_path
         self._backend = backend
         self._last_error = None
+        logger.info(
+            "Started %s playback for %s",
+            backend,
+            sound_path.name,
+        )
         return True
 
     def _preferred_loop_backend(self) -> str | None:
@@ -271,8 +281,10 @@ class AudioManager:
         detail = stderr_output.strip()
         friendly_detail = self._friendly_launch_error(detail)
         if friendly_detail:
+            logger.warning("%s launch issue: %s", backend, friendly_detail)
             return f"{backend} could not start playback: {friendly_detail}"
         if detail:
+            logger.warning("%s launch issue: %s", backend, detail)
             return f"{backend} could not start playback: {detail}"
         return f"{backend} exited before playback started."
 

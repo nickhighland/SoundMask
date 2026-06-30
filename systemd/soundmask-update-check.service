@@ -8,3 +8,5 @@ Type=oneshot
 WorkingDirectory=/opt/SoundMask
 EnvironmentFile=-/etc/soundmask/soundmask.env
 ExecStart=/opt/SoundMask/.venv/bin/python -m app.update_manager check
+StandardOutput=append:/var/lib/soundmask/logs/updates.log
+StandardError=append:/var/lib/soundmask/logs/updates.log

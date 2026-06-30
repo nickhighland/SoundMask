@@ -417,6 +417,35 @@ code {
   opacity: 0.9;
 }
 
+.log-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem;
+  align-items: end;
+}
+
+.log-toolbar label {
+  min-width: 180px;
+}
+
+.log-viewer {
+  min-height: 420px;
+  max-height: 70vh;
+  margin: 0;
+  overflow: auto;
+  padding: 1rem;
+  border-radius: 22px;
+  border: 1px solid var(--line);
+  background: #102238;
+  color: #eef5ff;
+  font-family: "SFMono-Regular", "Menlo", "Monaco", monospace;
+  font-size: 0.84rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03);
+}
+
 .timeline-scale {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
@@ -802,6 +831,7 @@ button {
   .toggle-row,
   .status-row,
   .schedule-item,
+  .log-toolbar,
   .compact-list li {
     flex-direction: column;
     align-items: flex-start;

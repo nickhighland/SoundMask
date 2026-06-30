@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 from threading import Lock
 from typing import Any
@@ -17,6 +18,9 @@ from app.trigger_rules import (
     merge_blocks,
     should_play,
 )
+
+
+logger = logging.getLogger(__name__)
 
 
 class SoundMaskScheduler:
@@ -123,12 +127,25 @@ class SoundMaskScheduler:
                 self.last_sync_ok = True
                 self.last_sync_message = f"Synced {len(blocks)} block(s)"
                 self.last_sync_at = utcnow_iso()
+                logger.info(
+                    "Calendar sync complete: source=%s trigger_mode=%s blocks=%s",
+                    calendar_source,
+                    trigger_mode,
+                    len(blocks),
+                )
             except Exception as exc:
                 if trigger_mode != "fake":
                     self.current_blocks = self.db.get_cached_blocks(source)
                 self.last_sync_ok = False
                 self.last_sync_message = f"Sync warning: {exc}"
                 self.last_sync_at = utcnow_iso()
+                logger.warning(
+                    "Calendar sync failed: source=%s trigger_mode=%s error=%s",
+                    calendar_source,
+                    trigger_mode,
+                    exc,
+                    exc_info=True,
+                )
             self.evaluate_playback()
 
     def evaluate_playback(self) -> None:

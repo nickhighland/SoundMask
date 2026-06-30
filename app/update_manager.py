@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
@@ -18,6 +19,8 @@ INSTALL_REQUEST_FILE_NAME = "update-install-request.json"
 DEFAULT_REMOTE = "origin"
 DEFAULT_BRANCH = "main"
 DEFAULT_REPO_URL = "https://github.com/nickhighland/SoundMask"
+
+logger = logging.getLogger(__name__)
 
 
 def utcnow_iso() -> str:
@@ -98,6 +101,7 @@ def save_status(config: AppConfig, payload: dict[str, Any]) -> None:
 def request_check(config: AppConfig) -> dict[str, Any]:
     payload = {"requested_at": utcnow_iso()}
     _write_json(check_request_path(config), payload)
+    logger.info("Update check requested.")
     save_status(
         config,
         {
@@ -112,6 +116,7 @@ def request_check(config: AppConfig) -> dict[str, Any]:
 def request_install(config: AppConfig) -> dict[str, Any]:
     payload = {"requested_at": utcnow_iso()}
     _write_json(install_request_path(config), payload)
+    logger.info("Update install requested.")
     save_status(
         config,
         {
@@ -160,6 +165,7 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
         "check_requested_at": None,
     }
     if not (repo_path / ".git").exists():
+        logger.warning("Update check skipped because install is not a git checkout.")
         save_status(
             config,
             {
@@ -196,7 +202,13 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
                 else "SoundMask is already up to date."
             ),
         }
+        logger.info(
+            "Update check completed: branch=%s update_available=%s",
+            current_branch,
+            update_available,
+        )
     except Exception as exc:
+        logger.warning("Update check failed: %s", exc, exc_info=True)
         payload = {
             **base_payload,
             "update_available": False,
@@ -214,6 +226,7 @@ def install_update(config: AppConfig) -> dict[str, Any]:
     if status.get("last_error"):
         return status
     if not status.get("update_available"):
+        logger.info("Update install skipped because no update was available.")
         save_status(
             config,
             {
@@ -235,6 +248,7 @@ def install_update(config: AppConfig) -> dict[str, Any]:
             cwd=app_root(config),
         )
         check_for_updates(config)
+        logger.info("Update installed successfully.")
         save_status(
             config,
             {
@@ -246,6 +260,7 @@ def install_update(config: AppConfig) -> dict[str, Any]:
         )
         return load_status(config)
     except Exception as exc:
+        logger.warning("Update install failed: %s", exc, exc_info=True)
         save_status(
             config,
             {

@@ -1,0 +1,71 @@
+{% extends 'base.html' %}
+{% block title %}Logs | SoundMask{% endblock %}
+{% block content %}
+<section class="panel stack">
+  <div class="section-heading">
+    <div>
+      <p class="eyebrow">Logs</p>
+      <h1>Historical and live diagnostics</h1>
+    </div>
+    <p class="muted">Review application activity, service output, and update tasks without leaving the appliance UI.</p>
+  </div>
+</section>
+
+<section
+  class="panel stack"
+  data-log-viewer
+  data-source="{{ log_payload.source }}"
+  data-lines="{{ log_payload.line_count }}"
+  data-endpoint="/logs/content"
+>
+  <div class="log-toolbar">
+    <label>
+      Log source
+      <select data-log-source>
+        {% for source in log_sources %}
+        <option value="{{ source.key }}" {% if source.key == log_payload.source %}selected{% endif %}>{{ source.label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>
+      Lines
+      <select data-log-lines>
+        {% for option in [100, 250, 500, 1000] %}
+        <option value="{{ option }}" {% if option == log_payload.line_count %}selected{% endif %}>{{ option }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label class="checkbox">
+      <input type="checkbox" data-log-auto checked />
+      Auto-refresh
+    </label>
+    <button type="button" class="secondary" data-log-refresh>Refresh Now</button>
+  </div>
+
+  <div class="status-stack">
+    <div class="status-row">
+      <span>Selected source</span>
+      <strong data-log-label>{{ log_payload.label }}</strong>
+    </div>
+    <div class="status-row">
+      <span>Path</span>
+      <strong data-log-path>{{ log_payload.path }}</strong>
+    </div>
+    <div class="status-row">
+      <span>Last file change</span>
+      <strong data-log-modified>{{ log_payload.modified_at or 'Not available yet' }}</strong>
+    </div>
+    <div class="status-row">
+      <span>Last refresh</span>
+      <strong data-log-updated>{{ log_payload.updated_at }}</strong>
+    </div>
+  </div>
+
+  <div class="note-card">
+    <strong data-log-description>{{ log_payload.description }}</strong>
+    <p class="muted">The viewer tails the most recent lines and refreshes every few seconds when auto-refresh is enabled.</p>
+  </div>
+
+  <pre class="log-viewer" data-log-content>{{ log_payload.content }}</pre>
+</section>
+{% endblock %}
