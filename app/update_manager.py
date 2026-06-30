@@ -75,6 +75,14 @@ def _write_json(path: Path, payload: dict[str, Any]) -> None:
     temp_path.replace(path)
 
 
+def _write_trigger_json(path: Path, payload: dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(
+        json.dumps(payload, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+
 def load_status(config: AppConfig) -> dict[str, Any]:
     payload = _load_json(status_path(config))
     check_request = _load_json(check_request_path(config))
@@ -107,7 +115,7 @@ def save_status(config: AppConfig, payload: dict[str, Any]) -> None:
 
 def request_check(config: AppConfig) -> dict[str, Any]:
     payload = {"requested_at": utcnow_iso()}
-    _write_json(check_request_path(config), payload)
+    _write_trigger_json(check_request_path(config), payload)
     logger.info("Update check requested.")
     save_status(
         config,
@@ -123,7 +131,7 @@ def request_check(config: AppConfig) -> dict[str, Any]:
 def request_install(config: AppConfig) -> dict[str, Any]:
     clear_install_request(config)
     payload = {"requested_at": utcnow_iso()}
-    _write_json(install_request_path(config), payload)
+    _write_trigger_json(install_request_path(config), payload)
     logger.info("Update install requested.")
     started = _try_start_install_worker(config)
     save_status(
