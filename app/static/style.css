@@ -313,6 +313,89 @@ code {
   grid-template-columns: minmax(0, 1.45fr) minmax(300px, 0.75fr);
 }
 
+.dashboard-shell {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.dashboard-monitor {
+  grid-template-columns: 1fr;
+  justify-items: center;
+  padding: 2.2rem 1.8rem;
+  text-align: center;
+}
+
+.dashboard-monitor-copy {
+  display: grid;
+  justify-items: center;
+  gap: 1rem;
+  width: min(720px, 100%);
+}
+
+.dashboard-monitor .hero-copy h1 {
+  margin: 0;
+  font-size: clamp(2.5rem, 4vw, 4.35rem);
+}
+
+.dashboard-monitor-actions {
+  justify-content: center;
+}
+
+.dashboard-next-play {
+  padding: 1.2rem 1.5rem;
+}
+
+.dashboard-next-play-copy {
+  display: grid;
+  justify-items: center;
+  gap: 0.35rem;
+  text-align: center;
+}
+
+.dashboard-next-play-copy span {
+  color: var(--muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.dashboard-next-play-copy strong {
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+
+.dashboard-today-schedule {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-section-heading {
+  align-items: flex-end;
+}
+
+.timeline-frame-dashboard {
+  gap: 0.85rem;
+}
+
+.timeline-track-dashboard {
+  min-height: 106px;
+}
+
+.timeline-segment-dashboard {
+  top: 18px;
+  bottom: 18px;
+  padding: 0;
+}
+
+.empty-state-dashboard {
+  margin-top: 0.25rem;
+}
+
+.dashboard-timeline-note {
+  margin: 0;
+  text-align: center;
+}
+
 .grid-two {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
@@ -1122,6 +1205,14 @@ button {
 
   .timeline-track {
     min-height: 132px;
+  }
+
+  .dashboard-monitor {
+    padding: 1.6rem 1.2rem;
+  }
+
+  .dashboard-next-play {
+    padding: 1rem 1.2rem;
   }
 
   .calendar-week-header,

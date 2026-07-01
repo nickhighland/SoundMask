@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from datetime import datetime, time, timedelta
 
 from app.models import ManualState, TitleMatchRule, TriggerBlock
+from app.timezones import resolve_timezone
 
 
 @dataclass(slots=True)
@@ -62,7 +63,9 @@ def _within_active_hours(now: datetime, settings: dict[str, object]) -> bool:
         return True
     start_value = time.fromisoformat(str(settings.get("active_hours_start", "07:00")))
     end_value = time.fromisoformat(str(settings.get("active_hours_end", "21:00")))
-    current = now.timetz().replace(tzinfo=None)
+    current = now.astimezone(
+        resolve_timezone(str(settings.get("timezone_name", "system")))
+    ).timetz().replace(tzinfo=None)
     if start_value <= end_value:
         return start_value <= current <= end_value
     return current >= start_value or current <= end_value

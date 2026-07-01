@@ -9,6 +9,12 @@
     </div>
     <p class="muted">Fine-tune the exact windows and sound behavior SoundMask should use.</p>
   </div>
+  {% if settings_error %}
+  <section class="banner warning-banner">
+    <strong>Settings issue</strong>
+    <p class="muted">{{ settings_error }}</p>
+  </section>
+  {% endif %}
   <form method="post" class="stack">
     <div class="grid-two">
       <section class="subpanel stack">
@@ -43,6 +49,17 @@
             <input type="time" name="active_hours_end" value="{{ settings.active_hours_end }}" />
           </label>
           <label>
+            Timezone
+            <input
+              type="text"
+              name="timezone_name"
+              value="{% if settings.timezone_name != 'system' %}{{ settings.timezone_name }}{% endif %}"
+              placeholder="System default ({{ timezone_info.system_name }})"
+              spellcheck="false"
+              autocomplete="off"
+            />
+          </label>
+          <label>
             Max event duration minutes
             <input type="number" min="15" name="max_event_duration_minutes" value="{{ settings.max_event_duration_minutes }}" />
           </label>
@@ -50,6 +67,17 @@
             Manual play minutes
             <input type="number" min="1" name="manual_play_duration_minutes" value="{{ settings.manual_play_duration_minutes }}" />
           </label>
+        </div>
+        <div class="note-card">
+          <strong>Timezone in use</strong>
+          <p class="muted">
+            {% if timezone_info.uses_system %}
+            Using the device timezone <code>{{ timezone_info.effective_name }}</code> ({{ timezone_info.offset_label }}).
+            {% else %}
+            Using <code>{{ timezone_info.effective_name }}</code> ({{ timezone_info.offset_label }}).
+            {% endif %}
+            Current local time there is {{ timezone_info.current_time_label }}.
+          </p>
         </div>
         <label class="checkbox"><input type="checkbox" name="active_hours_enabled" {% if settings.active_hours_enabled %}checked{% endif %} /> Enable active hours</label>
         <label class="checkbox"><input type="checkbox" name="ignore_all_day_events" {% if settings.ignore_all_day_events %}checked{% endif %} /> Ignore all-day events</label>

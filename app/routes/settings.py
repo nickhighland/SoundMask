@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from app.audio import MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 from app.network_config import load_status as load_network_status
 from app.network_config import request_port_change
+from app.timezones import timezone_context, validate_timezone_name
 
 router = APIRouter(prefix="/settings")
 
@@ -18,12 +19,16 @@ def _normalized_volume_percent(raw_value: int) -> int:
 def _settings_context(
     request: Request,
     *,
+    settings_error: str | None = None,
     network_error: str | None = None,
     network_status: dict[str, object] | None = None,
 ) -> dict[str, object]:
     config = request.app.state.config
+    settings = request.app.state.db.get_settings()
     return {
-        "settings": request.app.state.db.get_settings(),
+        "settings": settings,
+        "settings_error": settings_error,
+        "timezone_info": timezone_context(settings.get("timezone_name")),
         "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
         "network_supported": config.is_production,
         "network_error": network_error,
@@ -52,6 +57,7 @@ async def update_settings(
     active_hours_enabled: str | None = Form(None),
     active_hours_start: str = Form(...),
     active_hours_end: str = Form(...),
+    timezone_name: str = Form(""),
     max_event_duration_minutes: int = Form(...),
     ignore_all_day_events: str | None = Form(None),
     volume_percent: int = Form(...),
@@ -59,8 +65,17 @@ async def update_settings(
     fade_out_seconds: int = Form(...),
     manual_play_duration_minutes: int = Form(...),
     debug_store_event_summaries: str | None = Form(None),
-) -> RedirectResponse:
+) -> Response:
     db = request.app.state.db
+    try:
+        normalized_timezone_name = validate_timezone_name(timezone_name)
+    except ValueError as exc:
+        return request.app.state.templates.TemplateResponse(
+            request,
+            "settings.html",
+            _settings_context(request, settings_error=str(exc)),
+            status_code=400,
+        )
     db.set_setting("trigger_mode", trigger_mode)
     db.set_setting(
         "calendar_sync_interval_seconds",
@@ -71,6 +86,7 @@ async def update_settings(
     db.set_setting("active_hours_enabled", active_hours_enabled == "on")
     db.set_setting("active_hours_start", active_hours_start)
     db.set_setting("active_hours_end", active_hours_end)
+    db.set_setting("timezone_name", normalized_timezone_name)
     db.set_setting("max_event_duration_minutes", max_event_duration_minutes)
     db.set_setting("ignore_all_day_events", ignore_all_day_events == "on")
     db.set_setting("volume_percent", _normalized_volume_percent(volume_percent))

@@ -351,14 +351,13 @@ def test_sync_window_bounds_start_at_local_day():
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
         )
-        now = datetime(2026, 6, 30, 19, 15, tzinfo=timezone.utc)
+        scheduler.db.set_setting("timezone_name", "America/New_York")
+        now = datetime(2026, 7, 1, 3, 15, tzinfo=timezone.utc)
 
-        window_start, window_end = scheduler._sync_window_bounds(now=now)
+        window_start, window_end = scheduler._sync_window_bounds(
+            scheduler.db.get_settings(),
+            now=now,
+        )
 
-        assert window_start == now.astimezone().replace(
-            hour=0,
-            minute=0,
-            second=0,
-            microsecond=0,
-        ).astimezone(timezone.utc)
+        assert window_start == datetime(2026, 6, 30, 4, 0, tzinfo=timezone.utc)
         assert window_end == now + timedelta(hours=scheduler.LOOKAHEAD_HOURS)

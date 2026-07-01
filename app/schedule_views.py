@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from app.models import TriggerBlock
+from app.timezones import resolve_timezone
 
 CALENDAR_DEFAULT_START_HOUR = 8
 CALENDAR_DEFAULT_END_HOUR = 22
@@ -241,10 +242,11 @@ def _normalized_calendar_blocks(
 def build_schedule_view(
     blocks: list[TriggerBlock],
     now: datetime | None = None,
+    timezone_name: str | None = None,
 ) -> dict[str, Any]:
     current_time = now or datetime.now(timezone.utc)
-    local_now = current_time.astimezone()
-    local_tz = local_now.tzinfo or timezone.utc
+    local_tz = resolve_timezone(timezone_name)
+    local_now = current_time.astimezone(local_tz)
     day_start = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     day_end = day_start + timedelta(days=1)
     day_span_seconds = max(1, int((day_end - day_start).total_seconds()))
@@ -328,10 +330,11 @@ def build_calendar_view(
     blocks: list[TriggerBlock],
     now: datetime | None = None,
     days: int = 4,
+    timezone_name: str | None = None,
 ) -> dict[str, Any]:
     current_time = now or datetime.now(timezone.utc)
-    local_now = current_time.astimezone()
-    local_tz = local_now.tzinfo or timezone.utc
+    local_tz = resolve_timezone(timezone_name)
+    local_now = current_time.astimezone(local_tz)
     start_of_today = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
     visible_window_end = start_of_today + timedelta(days=days)
     visible_blocks = [

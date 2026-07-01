@@ -1,42 +1,24 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard | SoundMask{% endblock %}
 {% block content %}
-<section class="hero-panel">
-  <div class="hero-copy">
+<div class="dashboard-shell">
+<section class="hero-panel dashboard-monitor">
+  <div class="hero-copy dashboard-monitor-copy">
     <p class="eyebrow">Live Playback Monitor</p>
-    <h1>{{ status.state|default('idle')|title }}{% if status.state != 'playing' %}, standing by{% endif %}</h1>
-    <p class="hero-text">{{ status.detail|default('Ready for setup') }}</p>
-    <div class="button-row">
+    <h1>
+      {% if status.state == 'playing' %}
+      Playing now
+      {% elif status.state == 'error' %}
+      Attention needed
+      {% else %}
+      Idle, standing by
+      {% endif %}
+    </h1>
+    <div class="button-row dashboard-monitor-actions">
       <form action="/actions/manual-play" method="post"><button type="submit">Manual Play</button></form>
       <form action="/actions/manual-stop" method="post"><button type="submit" class="secondary">Stop</button></form>
       <form action="/actions/test-sound" method="post"><button type="submit" class="secondary">Test Sound</button></form>
     </div>
-  </div>
-  <div class="metric-grid">
-    <article class="metric-card">
-      <span>Calendar source</span>
-      <strong>{{ status.calendar_source|title }}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Trigger mode</span>
-      <strong>{{ status.trigger_mode }}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Volume / boost</span>
-      <strong>{{ status.volume_percent }} / {{ max_volume_percent }}%</strong>
-    </article>
-    <article class="metric-card">
-      <span>Active sound</span>
-      <strong>{{ status.active_sound }}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Mute</span>
-      <strong>{% if status.muted %}Muted{% else %}Live{% endif %}</strong>
-    </article>
-    <article class="metric-card">
-      <span>Last sync</span>
-      <strong>{{ status.last_sync_at or 'Never' }}</strong>
-    </article>
   </div>
 </section>
 
@@ -56,171 +38,44 @@
 </section>
 {% endif %}
 
-<section class="dashboard-grid">
-  <article class="panel schedule-panel stack">
-    <div class="section-heading">
+<section class="panel dashboard-next-play">
+  <div class="dashboard-next-play-copy">
+    <span>When SoundMask expects to play next:</span>
+    <strong>
+      {% if status.next_block %}
+      {{ next_block_label }}
+      {% elif status.active_block %}
+      No later window is scheduled right now.
+      {% else %}
+      Nothing is scheduled right now.
+      {% endif %}
+    </strong>
+  </div>
+</section>
+
+<section class="panel dashboard-today-schedule">
+  <div class="section-heading dashboard-section-heading">
       <div>
-        <p class="eyebrow">Buffered Calendar Windows</p>
-        <h2>When SoundMask expects to play</h2>
+        <p class="eyebrow">Today</p>
+        <h2>Today's Schedule</h2>
       </div>
-      <p class="muted">Local time, including start and end buffers.</p>
-    </div>
-    <div class="timeline-frame">
+  </div>
+    <div class="timeline-frame timeline-frame-dashboard">
       <div class="timeline-scale">
         {% for hour in schedule_view.timeline_hours %}
         <span>{{ hour }}</span>
         {% endfor %}
       </div>
-      <div class="timeline-track">
+      <div class="timeline-track timeline-track-dashboard">
         <div class="now-marker" style="left: {{ schedule_view.now_percent }}%;"></div>
         {% for segment in schedule_view.timeline_segments %}
-        <div class="timeline-segment{% if segment.active %} active{% endif %}" style="left: {{ segment.left }}%; width: {{ segment.width }}%;">
-          <span>{{ segment.source_label }}</span>
-        </div>
+        <div class="timeline-segment timeline-segment-dashboard{% if segment.active %} active{% endif %}" style="left: {{ segment.left }}%; width: {{ segment.width }}%;"></div>
         {% endfor %}
       </div>
-      <div class="timeline-caption">Now: {{ schedule_view.now_label }}</div>
     </div>
-    {% if schedule_view.entries %}
-    <ul class="schedule-list">
-      {% for entry in schedule_view.entries %}
-      <li class="schedule-item">
-        <div>
-          <p class="schedule-time">{{ entry.start_label }} - {{ entry.end_label }}</p>
-          <p class="muted">{{ entry.day_label }} · {{ entry.source_label }}</p>
-        </div>
-        <div class="schedule-meta">
-          <span class="info-pill">{{ entry.duration_label }}</span>
-          {% if entry.active %}<span class="status-pill active">Playing now</span>{% endif %}
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="empty-state">
-      <h3>No upcoming play windows</h3>
-      <p class="muted">Import a calendar or add a fake block to preview when SoundMask will trigger playback.</p>
-    </div>
+    {% if not schedule_view.timeline_segments %}
+    <p class="muted dashboard-timeline-note">No playback is scheduled for the rest of today.</p>
     {% endif %}
-  </article>
-
-  <div class="stack">
-    <article class="panel stack">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Playback Context</p>
-          <h2>Current and next window</h2>
-        </div>
-      </div>
-      <div class="status-stack">
-        <div class="status-row">
-          <span>Current window</span>
-          <strong>
-            {% if status.active_block %}
-            {{ status.active_block.start_time.astimezone().strftime('%I:%M %p').lstrip('0') }} - {{ status.active_block.end_time.astimezone().strftime('%I:%M %p').lstrip('0') }}
-            {% else %}
-            None
-            {% endif %}
-          </strong>
-        </div>
-        <div class="status-row">
-          <span>Next window</span>
-          <strong>
-            {% if status.next_block %}
-            {{ status.next_block.start_time.astimezone().strftime('%I:%M %p').lstrip('0') }} - {{ status.next_block.end_time.astimezone().strftime('%I:%M %p').lstrip('0') }}
-            {% else %}
-            None scheduled
-            {% endif %}
-          </strong>
-        </div>
-        <div class="status-row">
-          <span>Audio backend</span>
-          <strong>{{ audio_status.backend or audio_diagnostics.loop_backend or 'Unavailable' }}</strong>
-        </div>
-        <div class="status-row">
-          <span>Last sync</span>
-          <strong>{{ status.last_sync_message }}</strong>
-        </div>
-      </div>
-    </article>
-
-    <article class="panel stack">
-      <div class="section-heading">
-        <div>
-          <p class="eyebrow">Quick Control</p>
-          <h2>Mute and fake blocks</h2>
-        </div>
-      </div>
-      <form action="/actions/mute" method="post" class="inline-form">
-        <label>
-          Mute for minutes
-          <input type="number" name="minutes" min="1" value="30" />
-        </label>
-        <button type="submit">Mute</button>
-      </form>
-      <form action="/actions/unmute" method="post">
-        <button type="submit" class="secondary">Clear Mute</button>
-      </form>
-      <hr class="divider" />
-      <form action="/actions/fake-block" method="post" class="inline-form">
-        <label>
-          Start in minutes
-          <input type="number" name="start_in_minutes" min="0" value="1" />
-        </label>
-        <label>
-          Duration minutes
-          <input type="number" name="duration_minutes" min="1" value="3" />
-        </label>
-        <button type="submit">Add Fake Block</button>
-      </form>
-      <form action="/actions/fake-blocks/clear" method="post">
-        <button type="submit" class="secondary">Clear Fake Blocks</button>
-      </form>
-    </article>
-  </div>
 </section>
-
-<section class="grid-two">
-  <article class="panel stack">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Diagnostics</p>
-        <h2>Audio system</h2>
-      </div>
-    </div>
-    <ul class="list-clean compact-list">
-      <li><strong>Loop backend</strong><span>{{ audio_diagnostics.loop_backend or 'Unavailable' }}</span></li>
-      <li><strong>Test backend</strong><span>{{ audio_diagnostics.test_backend or 'Unavailable' }}</span></li>
-      <li><strong>mpv</strong><span>{% if audio_diagnostics.mpv_available %}Ready{% else %}Missing{% endif %}</span></li>
-      <li><strong>ffplay</strong><span>{% if audio_diagnostics.ffplay_available %}Ready{% else %}Missing{% endif %}</span></li>
-    </ul>
-  </article>
-
-  <article class="panel stack">
-    <div class="section-heading">
-      <div>
-        <p class="eyebrow">Queued Blocks</p>
-        <h2>Fake mode staging</h2>
-      </div>
-    </div>
-    {% if fake_blocks %}
-    <ul class="list-clean">
-      {% for block in fake_blocks %}
-      <li class="schedule-item">
-        <div>
-          <p class="schedule-time">{{ block.start_time }}</p>
-          <p class="muted">{{ block.end_time }}</p>
-        </div>
-        <span class="info-pill">Fake</span>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    <div class="empty-state">
-      <h3>No fake blocks queued</h3>
-      <p class="muted">Use fake mode to rehearse schedule behavior before connecting a live calendar.</p>
-    </div>
-    {% endif %}
-  </article>
-</section>
+</div>
 {% endblock %}

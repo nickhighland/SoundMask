@@ -11,6 +11,7 @@ from app.audio import AudioManager, DEFAULT_VOLUME_PERCENT
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.db import Database, utcnow_iso
 from app.models import ManualState, TriggerBlock
+from app.timezones import resolve_timezone
 from app.trigger_rules import (
     apply_buffers,
     get_next_block,
@@ -87,7 +88,7 @@ class SoundMaskScheduler:
             settings = self.db.get_settings()
             trigger_mode = settings.get("trigger_mode", "fake")
             calendar_source = settings.get("calendar_source", "google")
-            window_start, window_end = self._sync_window_bounds()
+            window_start, window_end = self._sync_window_bounds(settings)
             source = self._cache_source(str(calendar_source), str(trigger_mode))
             start_buffer_minutes = int(settings.get("start_buffer_minutes", 2))
             end_buffer_minutes = int(settings.get("end_buffer_minutes", 3))
@@ -316,10 +317,13 @@ class SoundMaskScheduler:
 
     def _sync_window_bounds(
         self,
+        settings: dict[str, Any],
         now: datetime | None = None,
     ) -> tuple[datetime, datetime]:
         current_time = now or datetime.now(timezone.utc)
-        local_now = current_time.astimezone()
+        local_now = current_time.astimezone(
+            resolve_timezone(str(settings.get("timezone_name", "system")))
+        )
         window_start = local_now.replace(
             hour=0,
             minute=0,

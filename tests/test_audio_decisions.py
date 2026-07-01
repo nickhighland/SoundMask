@@ -11,6 +11,7 @@ def base_settings():
         "active_hours_enabled": True,
         "active_hours_start": "07:00",
         "active_hours_end": "21:00",
+        "timezone_name": "system",
     }
 
 
@@ -37,3 +38,14 @@ def test_calendar_block_triggers_playback():
     decision = should_play(now, base_settings(), [block], ManualState())
     assert decision.should_play is True
     assert decision.reason == "calendar_active"
+
+
+def test_active_hours_respect_configured_timezone():
+    now = datetime(2026, 1, 1, 14, 30, tzinfo=timezone.utc)
+    settings = base_settings()
+    settings["timezone_name"] = "America/Los_Angeles"
+
+    decision = should_play(now, settings, [], ManualState())
+
+    assert decision.should_play is False
+    assert decision.reason == "outside_active_hours"

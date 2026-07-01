@@ -6,6 +6,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 from app.schedule_views import build_schedule_view
+from app.timezones import localize_datetime
 
 router = APIRouter()
 
@@ -16,14 +17,27 @@ async def dashboard(request: Request) -> HTMLResponse:
     db = request.app.state.db
     scheduler = request.app.state.scheduler
     settings = db.get_settings()
+    timezone_name = settings.get("timezone_name")
     audio = request.app.state.audio
+    status = scheduler.get_status()
+    next_block_label = None
+    if status["next_block"]:
+        next_start = localize_datetime(status["next_block"].start_time, timezone_name)
+        next_block_label = (
+            f"{next_start.strftime('%A, %B %d').replace(' 0', ' ')} at "
+            f"{next_start.strftime('%I:%M %p').lstrip('0')}"
+        )
     return request.app.state.templates.TemplateResponse(
         request,
         "dashboard.html",
         {
             "settings": settings,
-            "status": scheduler.get_status(),
-            "schedule_view": build_schedule_view(list(scheduler.current_blocks)),
+            "status": status,
+            "next_block_label": next_block_label,
+            "schedule_view": build_schedule_view(
+                list(scheduler.current_blocks),
+                timezone_name=timezone_name,
+            ),
             "fake_blocks": db.get_state("fake_blocks", []),
             "audio_status": audio.status(),
             "audio_diagnostics": audio.diagnostics(),

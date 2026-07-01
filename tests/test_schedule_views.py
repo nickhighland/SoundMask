@@ -26,6 +26,22 @@ def test_build_schedule_view_marks_active_segments():
     assert view["timeline_segments"][0]["active"] is True
 
 
+def test_build_schedule_view_uses_configured_timezone():
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+    blocks = [
+        TriggerBlock(
+            start_time=datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc),
+            end_time=datetime(2026, 1, 1, 19, 0, tzinfo=timezone.utc),
+            source="ics_title_match",
+        )
+    ]
+
+    view = build_schedule_view(blocks, now=now, timezone_name="America/Los_Angeles")
+
+    assert view["entries"][0]["start_label"] == "10:00 AM"
+    assert view["entries"][0]["end_label"] == "11:00 AM"
+
+
 def test_build_calendar_view_groups_blocks_by_day():
     now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     blocks = [
@@ -152,3 +168,11 @@ def test_build_calendar_view_keeps_distinct_calendar_overlap():
         long_block_start.astimezone(),
         (long_block_start + timedelta(hours=7)).astimezone(),
     )
+
+
+def test_build_calendar_view_uses_configured_timezone_label():
+    now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+
+    view = build_calendar_view([], now=now, days=1, timezone_name="America/Los_Angeles")
+
+    assert view["timezone_label"] == "GMT-08"
