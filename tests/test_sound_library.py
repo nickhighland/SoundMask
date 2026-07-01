@@ -6,7 +6,10 @@ from tempfile import TemporaryDirectory
 from app.config import AppConfig, AppPaths
 from app.db import init_db
 from app.models import SoundMixLayer, SoundRecord
-from app.routes.sounds import _group_sounds_by_category
+from app.sound_categories import (
+    available_sound_categories,
+    group_sounds_by_category,
+)
 
 
 def _make_db(temp_dir: str):
@@ -71,12 +74,31 @@ def test_sound_mix_layers_store_explicit_per_layer_volume() -> None:
         }
 
 
-def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads() -> None:
+def test_sound_records_store_categories() -> None:
+    with TemporaryDirectory() as temp_dir:
+        db, paths = _make_db(temp_dir)
+        sound_path = Path(paths.sounds) / "Busy Highway.mp3"
+        sound_path.write_bytes(b"demo")
+
+        sound = db.add_sound(
+            "Busy Highway.mp3",
+            "Busy Highway",
+            str(sound_path),
+            "audio/mpeg",
+            category="Transportation",
+        )
+
+        assert sound.category == "Transportation"
+        assert db.get_sound(sound.id).category == "Transportation"
+
+
+def test_sound_library_groups_bundled_sounds_by_category_and_uses_stored_upload_categories() -> None:
     sounds = [
         SoundRecord(
             id=1,
             filename="White Noise.mp3",
             display_name="White Noise",
+            category=None,
             path=Path("/tmp/White Noise.mp3"),
             mime_type="audio/mpeg",
             created_at="",
@@ -86,6 +108,7 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
             id=2,
             filename="Birds.mp3",
             display_name="Birds",
+            category=None,
             path=Path("/tmp/Birds.mp3"),
             mime_type="audio/mpeg",
             created_at="",
@@ -95,6 +118,7 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
             id=3,
             filename="Rain.mp3",
             display_name="Rain",
+            category=None,
             path=Path("/tmp/Rain.mp3"),
             mime_type="audio/mpeg",
             created_at="",
@@ -102,18 +126,20 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
         ),
         SoundRecord(
             id=4,
-            filename="Thunderstorm.mp3",
-            display_name="Thunderstorm",
-            path=Path("/tmp/Thunderstorm.mp3"),
+            filename="Wind.mp3",
+            display_name="Wind",
+            category=None,
+            path=Path("/tmp/Wind.mp3"),
             mime_type="audio/mpeg",
             created_at="",
             is_active=False,
         ),
         SoundRecord(
             id=5,
-            filename="Restaurant Ambience.mp3",
-            display_name="Restaurant Ambience",
-            path=Path("/tmp/Restaurant Ambience.mp3"),
+            filename="Busy Highway.mp3",
+            display_name="Busy Highway",
+            category=None,
+            path=Path("/tmp/Busy Highway.mp3"),
             mime_type="audio/mpeg",
             created_at="",
             is_active=False,
@@ -122,6 +148,7 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
             id=6,
             filename="Custom Loop.mp3",
             display_name="Custom Loop",
+            category="Office Ambience",
             path=Path("/tmp/Custom Loop.mp3"),
             mime_type="audio/mpeg",
             created_at="",
@@ -129,14 +156,14 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
         ),
     ]
 
-    grouped = _group_sounds_by_category(
+    grouped = group_sounds_by_category(
         sounds,
         {
             "White Noise.mp3",
             "Birds.mp3",
             "Rain.mp3",
-            "Thunderstorm.mp3",
-            "Restaurant Ambience.mp3",
+            "Wind.mp3",
+            "Busy Highway.mp3",
         },
     )
 
@@ -145,8 +172,38 @@ def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads()
         "Nature",
         "Water",
         "Weather",
-        "City & Indoor",
-        "Custom Uploads",
+        "Transportation",
+        "Office Ambience",
     ]
     assert [sound.display_name for sound in grouped[0][1]] == ["White Noise"]
+    assert [sound.display_name for sound in grouped[3][1]] == ["Wind"]
+    assert [sound.display_name for sound in grouped[4][1]] == ["Busy Highway"]
     assert [sound.display_name for sound in grouped[-1][1]] == ["Custom Loop"]
+
+
+def test_available_sound_categories_include_standard_and_custom_names() -> None:
+    sounds = [
+        SoundRecord(
+            id=1,
+            filename="Custom Loop.mp3",
+            display_name="Custom Loop",
+            category="Office Ambience",
+            path=Path("/tmp/Custom Loop.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        )
+    ]
+
+    categories = available_sound_categories(sounds, set())
+
+    assert categories[:6] == [
+        "Noise",
+        "Nature",
+        "Water",
+        "Weather",
+        "Transportation",
+        "City & Indoor",
+    ]
+    assert "Custom Uploads" in categories
+    assert "Office Ambience" in categories

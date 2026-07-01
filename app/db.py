@@ -72,6 +72,7 @@ class Database:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     filename TEXT NOT NULL,
                     display_name TEXT NOT NULL,
+                    category TEXT,
                     path TEXT NOT NULL,
                     mime_type TEXT,
                     created_at TEXT NOT NULL,
@@ -130,6 +131,13 @@ class Database:
         self.seed_defaults()
 
     def _migrate_schema(self, conn: sqlite3.Connection) -> None:
+        sound_columns = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(sounds)").fetchall()
+        }
+        if sound_columns and "category" not in sound_columns:
+            conn.execute("ALTER TABLE sounds ADD COLUMN category TEXT")
+
         trigger_cache_columns = {
             row["name"]
             for row in conn.execute("PRAGMA table_info(trigger_cache)").fetchall()
@@ -257,6 +265,7 @@ class Database:
                 id=row["id"],
                 filename=row["filename"],
                 display_name=row["display_name"],
+                category=row["category"],
                 path=Path(row["path"]),
                 mime_type=row["mime_type"],
                 created_at=row["created_at"],
@@ -277,6 +286,7 @@ class Database:
             id=row["id"],
             filename=row["filename"],
             display_name=row["display_name"],
+            category=row["category"],
             path=Path(row["path"]),
             mime_type=row["mime_type"],
             created_at=row["created_at"],
@@ -295,6 +305,7 @@ class Database:
             id=row["id"],
             filename=row["filename"],
             display_name=row["display_name"],
+            category=row["category"],
             path=Path(row["path"]),
             mime_type=row["mime_type"],
             created_at=row["created_at"],
@@ -312,6 +323,7 @@ class Database:
             id=row["id"],
             filename=row["filename"],
             display_name=row["display_name"],
+            category=row["category"],
             path=Path(row["path"]),
             mime_type=row["mime_type"],
             created_at=row["created_at"],
@@ -324,26 +336,37 @@ class Database:
         display_name: str,
         path: str,
         mime_type: str | None,
+        category: str | None = None,
     ) -> SoundRecord:
         existing = self.get_sound_by_filename(filename)
         if existing is not None:
             with self.connect() as conn:
-                conn.execute(
-                    """
-                    UPDATE sounds
-                    SET display_name = ?, path = ?, mime_type = ?
-                    WHERE id = ?
-                    """,
-                    (display_name, path, mime_type, existing.id),
-                )
+                if category is None:
+                    conn.execute(
+                        """
+                        UPDATE sounds
+                        SET display_name = ?, path = ?, mime_type = ?
+                        WHERE id = ?
+                        """,
+                        (display_name, path, mime_type, existing.id),
+                    )
+                else:
+                    conn.execute(
+                        """
+                        UPDATE sounds
+                        SET display_name = ?, category = ?, path = ?, mime_type = ?
+                        WHERE id = ?
+                        """,
+                        (display_name, category, path, mime_type, existing.id),
+                    )
             return self.get_sound(existing.id) or existing
         with self.connect() as conn:
             cursor = conn.execute(
                 """
-                INSERT INTO sounds(filename, display_name, path, mime_type, created_at)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO sounds(filename, display_name, category, path, mime_type, created_at)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (filename, display_name, path, mime_type, utcnow_iso()),
+                (filename, display_name, category, path, mime_type, utcnow_iso()),
             )
             sound_id = int(cursor.lastrowid)
         sound = self.get_sound(sound_id)

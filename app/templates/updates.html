@@ -33,24 +33,6 @@
       Up to date
       {% endif %}
     </span>
-    <div class="update-mini-grid">
-      <article class="metric-card">
-        <span>Version</span>
-        <strong>{{ update_status.current_version }}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Branch</span>
-        <strong>{{ update_status.current_branch or 'Unknown' }}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Checked</span>
-        <strong>{{ update_status.last_checked_label or 'Not yet' }}</strong>
-      </article>
-      <article class="metric-card">
-        <span>Source</span>
-        <strong>{{ update_status.repo_url.replace('https://github.com/', '') }}</strong>
-      </article>
-    </div>
   </aside>
 </section>
 

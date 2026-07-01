@@ -14,6 +14,7 @@ def _sound_record(sound_id: int, path: Path, name: str) -> SoundRecord:
         id=sound_id,
         filename=path.name,
         display_name=name,
+        category=None,
         path=path,
         mime_type="audio/mpeg",
         created_at="2026-07-01T00:00:00+00:00",

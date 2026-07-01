@@ -6,6 +6,7 @@ from pathlib import Path
 
 from app.config import AppConfig
 from app.db import Database
+from app.sound_categories import infer_bundled_sound_category
 
 
 def bundled_sounds_dir() -> Path:
@@ -34,4 +35,5 @@ def sync_bundled_sounds(config: AppConfig, db: Database) -> None:
             display_name,
             str(target_path),
             mime_type,
+            category=infer_bundled_sound_category(display_name),
         )

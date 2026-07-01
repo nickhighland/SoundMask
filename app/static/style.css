@@ -1028,6 +1028,10 @@ code {
   align-items: start;
 }
 
+.sound-upload-grid {
+  align-items: end;
+}
+
 .mix-layer-list li {
   display: flex;
   justify-content: space-between;

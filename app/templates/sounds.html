@@ -81,6 +81,21 @@
     <p class="muted">The Creative Commons sample library is embedded in the app. You can add your own WAV, MP3, OGG, or FLAC files here too.</p>
     <form action="/sounds/upload" method="post" enctype="multipart/form-data" class="stack">
       <input type="file" name="sound_file" accept=".wav,.mp3,.ogg,.flac,audio/*" required />
+      <div class="form-grid sound-upload-grid">
+        <label>
+          Category
+          <select name="category_name">
+            {% for category_name in upload_categories %}
+            <option value="{{ category_name }}" {% if category_name == 'Custom Uploads' %}selected{% endif %}>{{ category_name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>
+          Or create category
+          <input type="text" name="new_category_name" placeholder="e.g. Office Ambience" />
+        </label>
+      </div>
+      <p class="muted small-text">If you enter a new category name, it will be used instead of the dropdown selection.</p>
       <button type="submit">Upload Sound</button>
     </form>
   </article>

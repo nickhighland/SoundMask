@@ -9,32 +9,15 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
 from app.bundled_sounds import bundled_sounds_dir
-from app.models import SoundMixLayer, SoundRecord
+from app.models import SoundMixLayer
+from app.sound_categories import (
+    DEFAULT_UPLOAD_CATEGORY,
+    available_sound_categories,
+    group_sounds_by_category,
+    normalize_sound_category_name,
+)
 
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
-SOUND_CATEGORY_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
-    ("Noise", ("white noise", "brown noise", "pink noise", "noise")),
-    ("Nature", ("birds", "insects", "serengeti", "wind farm", "wind", "campfire")),
-    ("Water", ("rain", "stream", "waterfall", "waves", "river", "creek")),
-    ("Weather", ("thunderstorm", "storm")),
-    (
-        "City & Indoor",
-        (
-            "highway",
-            "city square",
-            "crowded cafeteria",
-            "restaurant ambience",
-            "time square",
-            "typing",
-        ),
-    ),
-    ("Travel & Transit", ("train",)),
-)
-SOUND_CATEGORY_ORDER: tuple[str, ...] = (
-    *(label for label, _keywords in SOUND_CATEGORY_RULES),
-    "Custom Uploads",
-    "Library",
-)
 
 router = APIRouter(prefix="/sounds")
 
@@ -58,34 +41,26 @@ def _bundled_sound_filenames() -> set[str]:
     return {path.name for path in source_dir.glob("*") if path.is_file()}
 
 
-def _sound_category_name(sound: SoundRecord, bundled_filenames: set[str]) -> str:
-    if sound.filename not in bundled_filenames:
-        return "Custom Uploads"
+def _resolved_upload_category(
+    selected_category: str | None,
+    new_category: str | None,
+    available_categories: list[str],
+) -> str:
+    normalized_new_category = normalize_sound_category_name(new_category)
+    if normalized_new_category:
+        for existing_category in available_categories:
+            if existing_category.casefold() == normalized_new_category.casefold():
+                return existing_category
+        return normalized_new_category
 
-    normalized_name = sound.display_name.lower()
-    for label, keywords in SOUND_CATEGORY_RULES:
-        if any(keyword in normalized_name for keyword in keywords):
-            return label
-    return "Library"
+    normalized_selected_category = normalize_sound_category_name(selected_category)
+    if normalized_selected_category:
+        for existing_category in available_categories:
+            if existing_category.casefold() == normalized_selected_category.casefold():
+                return existing_category
+        return normalized_selected_category
 
-
-def _group_sounds_by_category(
-    sounds: list[SoundRecord],
-    bundled_filenames: set[str],
-) -> list[tuple[str, list[SoundRecord]]]:
-    grouped: dict[str, list[SoundRecord]] = {
-        label: [] for label in SOUND_CATEGORY_ORDER
-    }
-    for sound in sounds:
-        grouped.setdefault(
-            _sound_category_name(sound, bundled_filenames),
-            [],
-        ).append(sound)
-    return [
-        (label, grouped[label])
-        for label in SOUND_CATEGORY_ORDER
-        if grouped.get(label)
-    ]
+    return DEFAULT_UPLOAD_CATEGORY
 
 
 @router.get("", response_class=HTMLResponse)
@@ -97,15 +72,17 @@ async def sounds_page(request: Request) -> HTMLResponse:
     mix_layers = db.resolve_sound_mix_layers()
     mix_diagnostics = request.app.state.sound_mixer.diagnostics()
     bundled_sound_filenames = _bundled_sound_filenames()
+    upload_categories = available_sound_categories(sounds, bundled_sound_filenames)
     return request.app.state.templates.TemplateResponse(
         request,
         "sounds.html",
         {
             "sounds": sounds,
-            "sound_categories": _group_sounds_by_category(
+            "sound_categories": group_sounds_by_category(
                 sounds,
                 bundled_sound_filenames,
             ),
+            "upload_categories": upload_categories,
             "bundled_sound_filenames": bundled_sound_filenames,
             "mix_layers": mix_layers,
             "mix_layer_map": {
@@ -131,12 +108,25 @@ async def sounds_page(request: Request) -> HTMLResponse:
 async def upload_sound(
     request: Request,
     sound_file: UploadFile = File(...),
+    category_name: str = Form(DEFAULT_UPLOAD_CATEGORY),
+    new_category_name: str = Form(""),
 ) -> RedirectResponse:
     filename = _safe_filename(sound_file.filename or "")
     extension = Path(filename).suffix.lower()
     if not filename or extension not in ALLOWED_EXTENSIONS:
         request.session["sound_message"] = "Upload a WAV, MP3, OGG, or FLAC file."
         return RedirectResponse(url="/sounds", status_code=303)
+
+    available_categories = available_sound_categories(
+        request.app.state.db.list_sounds(),
+        _bundled_sound_filenames(),
+    )
+    resolved_category = _resolved_upload_category(
+        category_name,
+        new_category_name,
+        available_categories,
+    )
+
     target = request.app.state.config.paths.sounds / filename
     target.write_bytes(await sound_file.read())
     mime_type = sound_file.content_type or mimetypes.guess_type(filename)[0]
@@ -145,10 +135,11 @@ async def upload_sound(
         Path(filename).stem,
         str(target),
         mime_type,
+        category=resolved_category,
     )
     if request.app.state.db.get_active_sound() is None:
         request.app.state.db.set_active_sound(sound.id)
-    request.session["sound_message"] = f"Uploaded {filename}."
+    request.session["sound_message"] = f"Uploaded {filename} to {resolved_category}."
     return RedirectResponse(url="/sounds", status_code=303)
 
 

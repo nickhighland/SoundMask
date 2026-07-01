@@ -42,6 +42,7 @@ class SoundRecord:
     id: int
     filename: str
     display_name: str
+    category: str | None
     path: Path
     mime_type: str | None
     created_at: str
