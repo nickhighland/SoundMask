@@ -33,6 +33,25 @@ document.addEventListener("DOMContentLoaded", () => {
     element.focus();
   });
 
+  document.querySelectorAll("[data-volume-form]").forEach((form) => {
+    const slider = form.querySelector("[data-volume-slider]");
+    const output = form.querySelector("[data-volume-output]");
+    if (!(slider instanceof HTMLInputElement) || !(output instanceof HTMLOutputElement)) {
+      return;
+    }
+
+    const syncOutput = () => {
+      output.textContent = `${slider.value}%`;
+    };
+
+    syncOutput();
+    slider.addEventListener("input", syncOutput);
+    slider.addEventListener("change", () => {
+      syncOutput();
+      form.requestSubmit();
+    });
+  });
+
   document.querySelectorAll("[data-log-viewer]").forEach((viewer) => {
     const endpoint = viewer.dataset.endpoint;
     const sourceSelect = viewer.querySelector("[data-log-source]");

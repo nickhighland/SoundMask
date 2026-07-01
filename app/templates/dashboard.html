@@ -19,6 +19,26 @@
       <form action="/actions/manual-stop" method="post"><button type="submit" class="secondary">Stop</button></form>
       <form action="/actions/test-sound" method="post"><button type="submit" class="secondary">Test Sound</button></form>
     </div>
+    <form action="/actions/volume" method="post" class="dashboard-volume-form" data-volume-form>
+      <label class="dashboard-volume-field" for="dashboard-volume">
+        <span>Sound volume</span>
+        <div class="dashboard-volume-control">
+          <input
+            id="dashboard-volume"
+            type="range"
+            name="volume_percent"
+            min="0"
+            max="{{ max_volume_percent }}"
+            value="{{ status.volume_percent }}"
+            data-volume-slider
+          />
+          <output for="dashboard-volume" data-volume-output>{{ status.volume_percent }}%</output>
+        </div>
+      </label>
+      <noscript>
+        <button type="submit" class="secondary">Apply Volume</button>
+      </noscript>
+    </form>
   </div>
 </section>
 

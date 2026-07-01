@@ -341,6 +341,80 @@ code {
   justify-content: center;
 }
 
+.dashboard-volume-form {
+  width: min(440px, 100%);
+}
+
+.dashboard-volume-field {
+  display: grid;
+  gap: 0.7rem;
+  width: 100%;
+  justify-items: center;
+  text-align: center;
+}
+
+.dashboard-volume-field span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.dashboard-volume-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.85rem;
+  align-items: center;
+  width: min(440px, 100%);
+}
+
+.dashboard-volume-control input[type="range"] {
+  width: 100%;
+  margin: 0;
+  appearance: none;
+  height: 0.45rem;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(67, 133, 245, 0.2), rgba(67, 133, 245, 0.75));
+  outline: none;
+}
+
+.dashboard-volume-control input[type="range"]::-webkit-slider-thumb {
+  appearance: none;
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 10px 24px rgba(67, 133, 245, 0.28);
+  cursor: pointer;
+}
+
+.dashboard-volume-control input[type="range"]::-moz-range-thumb {
+  width: 1.2rem;
+  height: 1.2rem;
+  border: 3px solid #ffffff;
+  border-radius: 50%;
+  background: var(--accent-strong);
+  box-shadow: 0 10px 24px rgba(67, 133, 245, 0.28);
+  cursor: pointer;
+}
+
+.dashboard-volume-control input[type="range"]::-moz-range-track {
+  height: 0.45rem;
+  border: 0;
+  border-radius: 999px;
+  background: linear-gradient(90deg, rgba(67, 133, 245, 0.2), rgba(67, 133, 245, 0.75));
+}
+
+.dashboard-volume-control output {
+  min-width: 4.2rem;
+  color: var(--accent-strong);
+  font-size: 1rem;
+  font-weight: 800;
+  text-align: right;
+}
+
 .dashboard-next-play {
   padding: 1.2rem 1.5rem;
 }
@@ -1213,6 +1287,15 @@ button {
 
   .dashboard-next-play {
     padding: 1rem 1.2rem;
+  }
+
+  .dashboard-volume-control {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-volume-control output {
+    min-width: 0;
+    text-align: center;
   }
 
   .calendar-week-header,

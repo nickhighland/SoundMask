@@ -11,6 +11,10 @@ from app.timezones import localize_datetime
 router = APIRouter()
 
 
+def _normalized_volume_percent(raw_value: int) -> int:
+    return max(0, min(int(raw_value), MAX_MPV_VOLUME_PERCENT))
+
+
 @router.get("/", response_class=HTMLResponse)
 @login_required
 async def dashboard(request: Request) -> HTMLResponse:
@@ -84,6 +88,27 @@ async def test_sound(request: Request) -> RedirectResponse:
             sound.path,
             int(db.get_setting("volume_percent", DEFAULT_VOLUME_PERCENT)),
         )
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/actions/volume")
+@login_required
+async def update_volume(
+    request: Request,
+    volume_percent: int = Form(...),
+) -> RedirectResponse:
+    db = request.app.state.db
+    normalized_volume = _normalized_volume_percent(volume_percent)
+    db.set_setting("volume_percent", normalized_volume)
+
+    audio = request.app.state.audio
+    if audio.is_playing():
+        if audio.status().get("backend") == "mpv":
+            audio.set_volume(normalized_volume)
+        else:
+            audio.stop()
+            request.app.state.scheduler.evaluate_playback()
+
     return RedirectResponse(url="/", status_code=303)
 
 
