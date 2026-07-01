@@ -44,7 +44,7 @@
       </article>
       <article class="metric-card">
         <span>Checked</span>
-        <strong>{{ update_status.last_checked_at or 'Not yet' }}</strong>
+        <strong>{{ update_status.last_checked_label or 'Not yet' }}</strong>
       </article>
       <article class="metric-card">
         <span>Source</span>
@@ -102,11 +102,11 @@
       </div>
       <div class="status-row">
         <span>Last checked</span>
-        <strong>{{ update_status.last_checked_at or 'Not checked yet' }}</strong>
+        <strong>{{ update_status.last_checked_label or 'Not checked yet' }}</strong>
       </div>
       <div class="status-row">
         <span>Last install</span>
-        <strong>{{ update_status.last_install_at or 'Never' }}</strong>
+        <strong>{{ update_status.last_install_label or 'Never' }}</strong>
       </div>
       <div class="status-row">
         <span>Summary</span>

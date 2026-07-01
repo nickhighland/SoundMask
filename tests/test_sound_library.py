@@ -5,7 +5,8 @@ from tempfile import TemporaryDirectory
 
 from app.config import AppConfig, AppPaths
 from app.db import init_db
-from app.models import SoundMixLayer
+from app.models import SoundMixLayer, SoundRecord
+from app.routes.sounds import _group_sounds_by_category
 
 
 def _make_db(temp_dir: str):
@@ -68,3 +69,84 @@ def test_sound_mix_layers_store_explicit_per_layer_volume() -> None:
             rain.id: 80,
             birds.id: 35,
         }
+
+
+def test_sound_library_groups_bundled_sounds_by_category_and_separates_uploads() -> None:
+    sounds = [
+        SoundRecord(
+            id=1,
+            filename="White Noise.mp3",
+            display_name="White Noise",
+            path=Path("/tmp/White Noise.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=2,
+            filename="Birds.mp3",
+            display_name="Birds",
+            path=Path("/tmp/Birds.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=3,
+            filename="Rain.mp3",
+            display_name="Rain",
+            path=Path("/tmp/Rain.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=4,
+            filename="Thunderstorm.mp3",
+            display_name="Thunderstorm",
+            path=Path("/tmp/Thunderstorm.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=5,
+            filename="Restaurant Ambience.mp3",
+            display_name="Restaurant Ambience",
+            path=Path("/tmp/Restaurant Ambience.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=6,
+            filename="Custom Loop.mp3",
+            display_name="Custom Loop",
+            path=Path("/tmp/Custom Loop.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+    ]
+
+    grouped = _group_sounds_by_category(
+        sounds,
+        {
+            "White Noise.mp3",
+            "Birds.mp3",
+            "Rain.mp3",
+            "Thunderstorm.mp3",
+            "Restaurant Ambience.mp3",
+        },
+    )
+
+    assert [label for label, _items in grouped] == [
+        "Noise",
+        "Nature",
+        "Water",
+        "Weather",
+        "City & Indoor",
+        "Custom Uploads",
+    ]
+    assert [sound.display_name for sound in grouped[0][1]] == ["White Noise"]
+    assert [sound.display_name for sound in grouped[-1][1]] == ["Custom Loop"]

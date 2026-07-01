@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
+from app.display import format_date_label
 from app.models import TriggerBlock
 from app.timezones import resolve_timezone
 
@@ -22,9 +23,8 @@ def source_label(source: str) -> str:
     return labels.get(source, source.replace("_", " ").title())
 
 
-def time_label(value: datetime, include_meridiem: bool = True) -> str:
-    pattern = "%I:%M %p" if include_meridiem else "%I:%M"
-    return value.strftime(pattern).lstrip("0")
+def time_label(value: datetime) -> str:
+    return value.strftime("%I:%M %p").lstrip("0")
 
 
 def appointment_label(source: str) -> str:
@@ -41,21 +41,8 @@ def appointment_end(block: TriggerBlock) -> datetime:
     return block.display_end_time or block.end_time
 
 
-def compact_time_label(value: datetime, include_meridiem: bool = True) -> str:
-    base = value.strftime("%I:%M").lstrip("0")
-    if base.endswith(":00"):
-        base = base[:-3]
-    if not include_meridiem:
-        return base
-    return f"{base}{value.strftime('%p').lower()}"
-
-
 def appointment_time_range_label(start: datetime, end: datetime) -> str:
-    same_meridiem = start.strftime("%p") == end.strftime("%p")
-    return (
-        f"{compact_time_label(start, include_meridiem=not same_meridiem)} - "
-        f"{compact_time_label(end)}"
-    )
+    return f"{time_label(start)} - {time_label(end)}"
 
 
 def timezone_label(value: datetime) -> str:
@@ -265,7 +252,7 @@ def build_schedule_view(
             if start_local.date() == local_now.date()
             else "Tomorrow"
             if start_local.date() == (local_now.date() + timedelta(days=1))
-            else start_local.strftime("%a, %b %d")
+            else format_date_label(start_local)
         )
         duration_minutes = max(
             1,
@@ -296,7 +283,7 @@ def build_schedule_view(
                 "left": round(left, 2),
                 "width": round(width, 2),
                 "label": (
-                    f"{time_label(start_local, include_meridiem=False)}-"
+                    f"{time_label(start_local)} - "
                     f"{time_label(end_local)}"
                 ),
                 "active": active,
@@ -305,7 +292,7 @@ def build_schedule_view(
         )
 
     timeline_hours = [
-        time_label(day_start + timedelta(hours=hour)).replace(":00", "")
+        time_label(day_start + timedelta(hours=hour))
         for hour in range(0, 24, 3)
     ]
     return {
@@ -420,7 +407,7 @@ def build_calendar_view(
             {
                 "day_label": day_start.strftime("%a").upper(),
                 "day_number": day_start.day,
-                "date_label": day_start.strftime("%b %d"),
+                "date_label": format_date_label(day_start),
                 "is_today": day_start.date() == local_now.date(),
                 "events": day_events,
             }
@@ -435,7 +422,7 @@ def build_calendar_view(
                     second=0,
                     microsecond=0,
                 )
-            ).replace(":00", ""),
+            ),
             "top_px": (slot_hour - visible_start_hour) * CALENDAR_HOUR_HEIGHT_PX,
         }
         for slot_hour in range(visible_start_hour, visible_end_hour + 1)

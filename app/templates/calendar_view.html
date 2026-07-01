@@ -15,7 +15,7 @@
       <button type="submit">Refresh Sync</button>
     </form>
   </div>
-  <p class="muted">Last sync status: {{ status.last_sync_message }}{% if status.last_sync_at %} at {{ status.last_sync_at }}{% endif %}</p>
+  <p class="muted">Last sync status: {{ status.last_sync_message }}{% if status.last_sync_at %} at {{ status.last_sync_at|datetime_label }}{% endif %}</p>
 </section>
 
 <section class="panel calendar-surface" style="--calendar-grid-height: {{ calendar_view.grid_height }}px;">

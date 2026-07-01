@@ -16,6 +16,11 @@ from app.bundled_sounds import sync_bundled_sounds
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.config import ensure_app_dirs, get_config
 from app.db import init_db
+from app.display import (
+    format_date_label,
+    format_datetime_label,
+    format_time_label,
+)
 from app.logging_setup import configure_logging
 from app.routes import (
     calendar_router,
@@ -35,6 +40,9 @@ ensure_app_dirs(config)
 configure_logging(config)
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["app_version"] = __version__
+templates.env.filters["date_label"] = format_date_label
+templates.env.filters["datetime_label"] = format_datetime_label
+templates.env.filters["time_label"] = format_time_label
 database = init_db(config)
 sync_bundled_sounds(config, database)
 audio = AudioManager(config.paths.logs / "mpv.sock")

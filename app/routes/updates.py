@@ -1,22 +1,53 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, RedirectResponse
 
 from app.auth import login_required
+from app.display import format_datetime_label
+from app.timezones import localize_datetime
 from app.update_manager import check_for_updates, load_status, request_install
 
 router = APIRouter(prefix="/updates")
 
 
+def _update_timestamp_label(
+    value: datetime | str | None,
+    timezone_name: str | None,
+) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, str):
+        try:
+            value = datetime.fromisoformat(value)
+        except ValueError:
+            return format_datetime_label(value)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return format_datetime_label(localize_datetime(value, timezone_name))
+
+
 @router.get("", response_class=HTMLResponse)
 @login_required
 async def updates_page(request: Request) -> HTMLResponse:
+    settings = request.app.state.db.get_settings()
+    timezone_name = settings.get("timezone_name")
+    update_status = load_status(request.app.state.config)
+    update_status["last_checked_label"] = _update_timestamp_label(
+        update_status.get("last_checked_at"),
+        timezone_name,
+    )
+    update_status["last_install_label"] = _update_timestamp_label(
+        update_status.get("last_install_at"),
+        timezone_name,
+    )
     return request.app.state.templates.TemplateResponse(
         request,
         "updates.html",
         {
-            "update_status": load_status(request.app.state.config),
+            "update_status": update_status,
         },
     )
 

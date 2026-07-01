@@ -19,7 +19,13 @@
       <form action="/actions/manual-stop" method="post"><button type="submit" class="secondary">Stop</button></form>
       <form action="/actions/test-sound" method="post"><button type="submit" class="secondary">Test Sound</button></form>
     </div>
-    <form action="/actions/volume" method="post" class="dashboard-volume-form" data-volume-form>
+    <form
+      action="/actions/volume"
+      method="post"
+      class="dashboard-volume-form"
+      data-volume-form
+      data-volume-live="{% if audio_status.backend == 'mpv' %}true{% else %}false{% endif %}"
+    >
       <label class="dashboard-volume-field" for="dashboard-volume">
         <span>Sound volume</span>
         <div class="dashboard-volume-control">
@@ -32,8 +38,8 @@
             value="{{ status.volume_percent }}"
             data-volume-slider
           />
-          <output for="dashboard-volume" data-volume-output>{{ status.volume_percent }}%</output>
         </div>
+        <output for="dashboard-volume" data-volume-output>{{ status.volume_percent }}%</output>
       </label>
       <noscript>
         <button type="submit" class="secondary">Apply Volume</button>
@@ -60,6 +66,7 @@
 
 <section class="panel dashboard-next-play">
   <div class="dashboard-next-play-copy">
+    <p class="dashboard-current-datetime">{{ current_datetime_label }}</p>
     <span>When SoundMask expects to play next:</span>
     <strong>
       {% if status.next_block %}

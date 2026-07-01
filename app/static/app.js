@@ -40,15 +40,85 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const liveUpdates = form.dataset.volumeLive === "true";
+    let submitTimer = null;
+    let requestSequence = 0;
+
+    const syncTrack = () => {
+      const min = Number(slider.min || "0");
+      const max = Number(slider.max || "100");
+      const value = Number(slider.value || "0");
+      const percent = max <= min ? 0 : ((value - min) / (max - min)) * 100;
+      slider.style.setProperty(
+        "--volume-fill",
+        `${Math.max(0, Math.min(100, percent))}%`,
+      );
+    };
+
     const syncOutput = () => {
       output.textContent = `${slider.value}%`;
+      syncTrack();
+    };
+
+    const submitVolume = async () => {
+      requestSequence += 1;
+      const currentRequest = requestSequence;
+      const payload = new URLSearchParams({
+        volume_percent: slider.value,
+      });
+
+      try {
+        const response = await fetch(form.action, {
+          method: "POST",
+          headers: {
+            Accept: "application/json",
+            "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          body: payload.toString(),
+        });
+        if (!response.ok) {
+          throw new Error(`Volume update failed (${response.status})`);
+        }
+        const result = await response.json();
+        if (currentRequest !== requestSequence) {
+          return;
+        }
+        slider.value = String(result.volume_percent);
+        syncOutput();
+      } catch (_error) {
+        if (currentRequest !== requestSequence) {
+          return;
+        }
+        form.submit();
+      }
+    };
+
+    const scheduleLiveSubmit = () => {
+      if (!liveUpdates) {
+        return;
+      }
+      if (submitTimer) {
+        window.clearTimeout(submitTimer);
+      }
+      submitTimer = window.setTimeout(() => {
+        submitTimer = null;
+        submitVolume().catch(() => {});
+      }, 120);
     };
 
     syncOutput();
-    slider.addEventListener("input", syncOutput);
-    slider.addEventListener("change", () => {
+    slider.addEventListener("input", () => {
       syncOutput();
-      form.requestSubmit();
+      scheduleLiveSubmit();
+    });
+    slider.addEventListener("change", () => {
+      if (submitTimer) {
+        window.clearTimeout(submitTimer);
+        submitTimer = null;
+      }
+      syncOutput();
+      submitVolume().catch(() => {});
     });
   });
 
@@ -64,9 +134,21 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
+    const syncLayerTrack = () => {
+      const min = Number(slider.min || "0");
+      const max = Number(slider.max || "100");
+      const value = Number(slider.value || "0");
+      const percent = max <= min ? 0 : ((value - min) / (max - min)) * 100;
+      slider.style.setProperty(
+        "--layer-fill",
+        `${Math.max(0, Math.min(100, percent))}%`,
+      );
+    };
+
     const syncLayerCard = () => {
       slider.disabled = !toggle.checked;
       output.textContent = `${slider.value}%`;
+      syncLayerTrack();
       card.classList.toggle("is-selected", toggle.checked);
     };
 

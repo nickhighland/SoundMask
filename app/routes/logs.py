@@ -17,13 +17,19 @@ async def logs_page(
     lines: int = Query(250),
 ) -> HTMLResponse:
     config = request.app.state.config
+    settings = request.app.state.db.get_settings()
     initial_source = source or default_source_key(config)
     return request.app.state.templates.TemplateResponse(
         request,
         "logs.html",
         {
             "log_sources": available_sources(config),
-            "log_payload": read_log_source(config, initial_source, lines),
+            "log_payload": read_log_source(
+                config,
+                initial_source,
+                lines,
+                timezone_name=settings.get("timezone_name"),
+            ),
         },
     )
 
@@ -35,5 +41,11 @@ async def logs_content(
     source: str = Query("app"),
     lines: int = Query(250),
 ) -> JSONResponse:
-    payload = read_log_source(request.app.state.config, source, lines)
+    settings = request.app.state.db.get_settings()
+    payload = read_log_source(
+        request.app.state.config,
+        source,
+        lines,
+        timezone_name=settings.get("timezone_name"),
+    )
     return JSONResponse(payload)

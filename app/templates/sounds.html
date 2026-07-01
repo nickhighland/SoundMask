@@ -83,18 +83,6 @@
       <input type="file" name="sound_file" accept=".wav,.mp3,.ogg,.flac,audio/*" required />
       <button type="submit">Upload Sound</button>
     </form>
-    <div class="subpanel stack">
-      <h3>Playback backends</h3>
-      <ul class="list-clean compact-list">
-        <li><strong>Loop backend</strong><span>{{ audio_diagnostics.loop_backend or 'Unavailable' }}</span></li>
-        <li><strong>Test backend</strong><span>{{ audio_diagnostics.test_backend or 'Unavailable' }}</span></li>
-        <li><strong>mpv</strong><span>{% if audio_diagnostics.mpv_available %}Ready{% else %}Missing{% endif %}</span></li>
-        <li><strong>ffmpeg</strong><span>{% if mix_diagnostics.ffmpeg_available %}Ready{% else %}Missing{% endif %}</span></li>
-      </ul>
-      {% if not audio_diagnostics.mpv_available %}
-      <p class="muted"><code>mpv</code> is still the preferred appliance backend: <code>{{ audio_diagnostics.install_hint }}</code>.</p>
-      {% endif %}
-    </div>
   </article>
 </section>
 
@@ -108,54 +96,72 @@
       <span class="status-pill neutral">Dashboard volume stays the master control</span>
     </div>
     {% if sounds %}
-    <div class="sound-library-grid">
-      {% for sound in sounds %}
-      {% set in_mix = sound.id in mix_layer_map %}
-      <article class="sound-card sound-layer-card{% if in_mix %} is-selected{% endif %}" data-layer-card>
-        <div class="sound-card-top">
-          <div class="sound-layer-heading">
-            <strong>{{ sound.display_name }}</strong>
-            <p class="muted">{{ sound.mime_type or 'audio file' }}</p>
+    <div class="sound-library-sections">
+      {% for category_name, category_sounds in sound_categories %}
+      <section class="sound-category-section">
+        <header class="sound-category-header">
+          <div>
+            <p class="eyebrow">{{ category_name }}</p>
+            <h3>{{ category_sounds|length }} sound{% if category_sounds|length != 1 %}s{% endif %}</h3>
           </div>
-          <label class="sound-toggle">
-            <input
-              type="checkbox"
-              name="selected_sound_ids"
-              value="{{ sound.id }}"
-              {% if in_mix %}checked{% endif %}
-              data-layer-toggle
-            />
-            <span>Include in mix</span>
-          </label>
+        </header>
+        <div class="sound-library-grid">
+          {% for sound in category_sounds %}
+          {% set in_mix = sound.id in mix_layer_map %}
+          <article class="sound-card sound-layer-card{% if in_mix %} is-selected{% endif %}" data-layer-card>
+            <div class="sound-card-top">
+              <div class="sound-layer-heading">
+                <strong>{{ sound.display_name }}</strong>
+                <p class="muted small-text">
+                  {% if sound.filename in bundled_sound_filenames %}
+                  Bundled sample
+                  {% else %}
+                  Uploaded sound
+                  {% endif %}
+                </p>
+              </div>
+              <label class="sound-toggle">
+                <input
+                  type="checkbox"
+                  name="selected_sound_ids"
+                  value="{{ sound.id }}"
+                  {% if in_mix %}checked{% endif %}
+                  data-layer-toggle
+                />
+                <span>In mix</span>
+              </label>
+            </div>
+
+            <audio controls preload="none" class="sound-preview">
+              <source src="/sounds/{{ sound.id }}/preview" type="{{ sound.mime_type or 'audio/mpeg' }}" />
+            </audio>
+
+            <label class="sound-layer-volume" for="layer-volume-{{ sound.id }}">
+              <span>Layer volume</span>
+              <div class="sound-layer-volume-row">
+                <input
+                  id="layer-volume-{{ sound.id }}"
+                  type="range"
+                  name="layer_volume_{{ sound.id }}"
+                  min="0"
+                  max="100"
+                  value="{{ mix_layer_map.get(sound.id, 100) }}"
+                  {% if not in_mix %}disabled{% endif %}
+                  data-layer-slider
+                />
+                <output data-layer-output>{{ mix_layer_map.get(sound.id, 100) }}%</output>
+              </div>
+            </label>
+
+            <div class="sound-card-actions">
+              <button type="submit" class="secondary" form="sound-solo-{{ sound.id }}">Use Alone</button>
+              <button type="submit" class="secondary" form="sound-test-{{ sound.id }}">Test</button>
+              <button type="submit" class="danger" form="sound-delete-{{ sound.id }}">Delete</button>
+            </div>
+          </article>
+          {% endfor %}
         </div>
-
-        <audio controls preload="none" class="sound-preview">
-          <source src="/sounds/{{ sound.id }}/preview" type="{{ sound.mime_type or 'audio/mpeg' }}" />
-        </audio>
-
-        <label class="sound-layer-volume" for="layer-volume-{{ sound.id }}">
-          <span>Layer volume</span>
-          <div class="sound-layer-volume-row">
-            <input
-              id="layer-volume-{{ sound.id }}"
-              type="range"
-              name="layer_volume_{{ sound.id }}"
-              min="0"
-              max="100"
-              value="{{ mix_layer_map.get(sound.id, 100) }}"
-              {% if not in_mix %}disabled{% endif %}
-              data-layer-slider
-            />
-            <output data-layer-output>{{ mix_layer_map.get(sound.id, 100) }}%</output>
-          </div>
-        </label>
-
-        <div class="button-row compact">
-          <button type="submit" class="secondary" form="sound-solo-{{ sound.id }}">Use Alone</button>
-          <button type="submit" class="secondary" form="sound-test-{{ sound.id }}">Test This Sound</button>
-          <button type="submit" class="danger" form="sound-delete-{{ sound.id }}">Delete</button>
-        </div>
-      </article>
+      </section>
       {% endfor %}
     </div>
     <div class="button-row">

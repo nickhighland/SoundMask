@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Form, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
+from app.display import format_datetime_label
 from app.schedule_views import build_schedule_view
 from app.timezones import localize_datetime
 
@@ -13,6 +16,15 @@ router = APIRouter()
 
 def _normalized_volume_percent(raw_value: int) -> int:
     return max(0, min(int(raw_value), MAX_MPV_VOLUME_PERCENT))
+
+
+def _request_prefers_json(request: Request) -> bool:
+    accept_header = request.headers.get("accept", "")
+    requested_with = request.headers.get("x-requested-with", "")
+    return (
+        "application/json" in accept_header.lower()
+        or requested_with.lower() == "xmlhttprequest"
+    )
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -24,19 +36,20 @@ async def dashboard(request: Request) -> HTMLResponse:
     timezone_name = settings.get("timezone_name")
     audio = request.app.state.audio
     status = scheduler.get_status()
+    current_datetime_label = format_datetime_label(
+        localize_datetime(datetime.now(timezone.utc), timezone_name)
+    )
     next_block_label = None
     if status["next_block"]:
         next_start = localize_datetime(status["next_block"].start_time, timezone_name)
-        next_block_label = (
-            f"{next_start.strftime('%A, %B %d').replace(' 0', ' ')} at "
-            f"{next_start.strftime('%I:%M %p').lstrip('0')}"
-        )
+        next_block_label = format_datetime_label(next_start)
     return request.app.state.templates.TemplateResponse(
         request,
         "dashboard.html",
         {
             "settings": settings,
             "status": status,
+            "current_datetime_label": current_datetime_label,
             "next_block_label": next_block_label,
             "schedule_view": build_schedule_view(
                 list(scheduler.current_blocks),
@@ -103,7 +116,7 @@ async def test_sound(request: Request) -> RedirectResponse:
 async def update_volume(
     request: Request,
     volume_percent: int = Form(...),
-) -> RedirectResponse:
+) -> Response:
     db = request.app.state.db
     normalized_volume = _normalized_volume_percent(volume_percent)
     db.set_setting("volume_percent", normalized_volume)
@@ -115,6 +128,16 @@ async def update_volume(
         else:
             audio.stop()
             request.app.state.scheduler.evaluate_playback()
+
+    if _request_prefers_json(request):
+        return JSONResponse(
+            {
+                "ok": True,
+                "volume_percent": normalized_volume,
+                "playing": audio.is_playing(),
+                "backend": audio.status().get("backend"),
+            }
+        )
 
     return RedirectResponse(url="/", status_code=303)
 

@@ -8,9 +8,33 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
-from app.models import SoundMixLayer
+from app.bundled_sounds import bundled_sounds_dir
+from app.models import SoundMixLayer, SoundRecord
 
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
+SOUND_CATEGORY_RULES: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("Noise", ("white noise", "brown noise", "pink noise", "noise")),
+    ("Nature", ("birds", "insects", "serengeti", "wind farm", "wind", "campfire")),
+    ("Water", ("rain", "stream", "waterfall", "waves", "river", "creek")),
+    ("Weather", ("thunderstorm", "storm")),
+    (
+        "City & Indoor",
+        (
+            "highway",
+            "city square",
+            "crowded cafeteria",
+            "restaurant ambience",
+            "time square",
+            "typing",
+        ),
+    ),
+    ("Travel & Transit", ("train",)),
+)
+SOUND_CATEGORY_ORDER: tuple[str, ...] = (
+    *(label for label, _keywords in SOUND_CATEGORY_RULES),
+    "Custom Uploads",
+    "Library",
+)
 
 router = APIRouter(prefix="/sounds")
 
@@ -27,18 +51,62 @@ def _normalized_layer_volume(raw_value: object) -> int:
         return 100
 
 
+def _bundled_sound_filenames() -> set[str]:
+    source_dir = bundled_sounds_dir()
+    if not source_dir.exists():
+        return set()
+    return {path.name for path in source_dir.glob("*") if path.is_file()}
+
+
+def _sound_category_name(sound: SoundRecord, bundled_filenames: set[str]) -> str:
+    if sound.filename not in bundled_filenames:
+        return "Custom Uploads"
+
+    normalized_name = sound.display_name.lower()
+    for label, keywords in SOUND_CATEGORY_RULES:
+        if any(keyword in normalized_name for keyword in keywords):
+            return label
+    return "Library"
+
+
+def _group_sounds_by_category(
+    sounds: list[SoundRecord],
+    bundled_filenames: set[str],
+) -> list[tuple[str, list[SoundRecord]]]:
+    grouped: dict[str, list[SoundRecord]] = {
+        label: [] for label in SOUND_CATEGORY_ORDER
+    }
+    for sound in sounds:
+        grouped.setdefault(
+            _sound_category_name(sound, bundled_filenames),
+            [],
+        ).append(sound)
+    return [
+        (label, grouped[label])
+        for label in SOUND_CATEGORY_ORDER
+        if grouped.get(label)
+    ]
+
+
 @router.get("", response_class=HTMLResponse)
 @login_required
 async def sounds_page(request: Request) -> HTMLResponse:
     db = request.app.state.db
     audio = request.app.state.audio
+    sounds = db.list_sounds()
     mix_layers = db.resolve_sound_mix_layers()
     mix_diagnostics = request.app.state.sound_mixer.diagnostics()
+    bundled_sound_filenames = _bundled_sound_filenames()
     return request.app.state.templates.TemplateResponse(
         request,
         "sounds.html",
         {
-            "sounds": db.list_sounds(),
+            "sounds": sounds,
+            "sound_categories": _group_sounds_by_category(
+                sounds,
+                bundled_sound_filenames,
+            ),
+            "bundled_sound_filenames": bundled_sound_filenames,
             "mix_layers": mix_layers,
             "mix_layer_map": {
                 layer.sound.id: layer.volume_percent for layer in mix_layers

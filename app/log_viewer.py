@@ -6,6 +6,8 @@ from pathlib import Path
 from typing import Any
 
 from app.config import AppConfig
+from app.display import format_datetime_label
+from app.timezones import localize_datetime
 
 
 @dataclass(frozen=True)
@@ -56,10 +58,18 @@ def _tail_lines(path: Path, lines: int) -> str:
     return "\n".join(content[-lines:])
 
 
+def _log_timestamp_label(
+    value: datetime,
+    timezone_name: str | None,
+) -> str | None:
+    return format_datetime_label(localize_datetime(value, timezone_name))
+
+
 def read_log_source(
     config: AppConfig,
     source_key: str,
     lines: int = 250,
+    timezone_name: str | None = None,
 ) -> dict[str, Any]:
     line_count = max(1, min(lines, 1000))
     selected = next(
@@ -75,10 +85,13 @@ def read_log_source(
     content = _tail_lines(selected.path, line_count)
     modified_at = None
     if selected.path.exists():
-        modified_at = datetime.fromtimestamp(
-            selected.path.stat().st_mtime,
-            tz=timezone.utc,
-        ).isoformat()
+        modified_at = _log_timestamp_label(
+            datetime.fromtimestamp(
+                selected.path.stat().st_mtime,
+                tz=timezone.utc,
+            ),
+            timezone_name,
+        )
     return {
         "source": selected.key,
         "label": selected.label,
@@ -87,5 +100,8 @@ def read_log_source(
         "line_count": line_count,
         "modified_at": modified_at,
         "content": content,
-        "updated_at": datetime.now(timezone.utc).isoformat(),
+        "updated_at": _log_timestamp_label(
+            datetime.now(timezone.utc),
+            timezone_name,
+        ),
     }

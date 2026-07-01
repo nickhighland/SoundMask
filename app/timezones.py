@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone, tzinfo
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from app.display import format_time_label
 from tzlocal import get_localzone_name
 
 SYSTEM_TIMEZONE = "system"
@@ -73,7 +74,7 @@ def timezone_context(
         "system_name": system_timezone_name(),
         "uses_system": stored_name == SYSTEM_TIMEZONE,
         "offset_label": timezone_offset_label(current_time),
-        "current_time_label": current_time.strftime("%I:%M %p").lstrip("0"),
+        "current_time_label": format_time_label(current_time),
     }
 
 
