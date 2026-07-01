@@ -6,7 +6,12 @@ from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 
 from app.models import TriggerBlock
-from app.routes.dashboard import _normalized_volume_percent, build_schedule_view, update_volume
+from app.routes.dashboard import (
+    _normalized_volume_percent,
+    build_schedule_view,
+    mute_current_session,
+    update_volume,
+)
 
 
 def test_build_schedule_view_marks_active_and_upcoming_windows():
@@ -71,9 +76,14 @@ class FakeDashboardAudio:
 class FakeDashboardScheduler:
     def __init__(self) -> None:
         self.evaluate_calls = 0
+        self.mute_current_session_calls = 0
 
     def evaluate_playback(self) -> None:
         self.evaluate_calls += 1
+
+    def mute_current_session(self) -> bool:
+        self.mute_current_session_calls += 1
+        return True
 
 
 def test_update_volume_returns_json_for_async_dashboard_requests():
@@ -110,3 +120,20 @@ def test_update_volume_returns_json_for_async_dashboard_requests():
     assert audio.volume_updates == [120]
     assert audio.stop_calls == 0
     assert scheduler.evaluate_calls == 0
+
+
+def test_mute_current_session_redirects_back_to_dashboard():
+    scheduler = FakeDashboardScheduler()
+    request = SimpleNamespace(
+        app=SimpleNamespace(
+            state=SimpleNamespace(
+                scheduler=scheduler,
+            )
+        )
+    )
+
+    response = asyncio.run(mute_current_session.__wrapped__(request=request))
+
+    assert response.status_code == 303
+    assert response.headers["location"] == "/"
+    assert scheduler.mute_current_session_calls == 1

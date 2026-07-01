@@ -9,6 +9,7 @@ from app.models import SoundMixLayer, SoundRecord
 from app.sound_categories import (
     available_sound_categories,
     group_sounds_by_category,
+    normalize_sound_category_name,
 )
 
 
@@ -146,6 +147,16 @@ def test_sound_library_groups_bundled_sounds_by_category_and_uses_stored_upload_
         ),
         SoundRecord(
             id=6,
+            filename="Train Passing.mp3",
+            display_name="Train Passing",
+            category=None,
+            path=Path("/tmp/Train Passing.mp3"),
+            mime_type="audio/mpeg",
+            created_at="",
+            is_active=False,
+        ),
+        SoundRecord(
+            id=7,
             filename="Custom Loop.mp3",
             display_name="Custom Loop",
             category="Office Ambience",
@@ -164,6 +175,7 @@ def test_sound_library_groups_bundled_sounds_by_category_and_uses_stored_upload_
             "Rain.mp3",
             "Wind.mp3",
             "Busy Highway.mp3",
+            "Train Passing.mp3",
         },
     )
 
@@ -177,7 +189,10 @@ def test_sound_library_groups_bundled_sounds_by_category_and_uses_stored_upload_
     ]
     assert [sound.display_name for sound in grouped[0][1]] == ["White Noise"]
     assert [sound.display_name for sound in grouped[3][1]] == ["Wind"]
-    assert [sound.display_name for sound in grouped[4][1]] == ["Busy Highway"]
+    assert [sound.display_name for sound in grouped[4][1]] == [
+        "Busy Highway",
+        "Train Passing",
+    ]
     assert [sound.display_name for sound in grouped[-1][1]] == ["Custom Loop"]
 
 
@@ -207,3 +222,7 @@ def test_available_sound_categories_include_standard_and_custom_names() -> None:
     ]
     assert "Custom Uploads" in categories
     assert "Office Ambience" in categories
+
+
+def test_normalize_sound_category_name_maps_legacy_transport_label() -> None:
+    assert normalize_sound_category_name("Travel & Transit") == "Transportation"

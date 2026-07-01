@@ -71,11 +71,11 @@
     <ul class="list-clean">
       {% for calendar in saved_calendars %}
       <li>
-        <form action="/calendar/calendar-toggle" method="post" class="toggle-row">
+        <form action="/calendar/calendar-toggle" method="post" class="toggle-row calendar-selection-row">
           <input type="hidden" name="calendar_id" value="{{ calendar.calendar_id }}" />
-          <div>
+          <div class="calendar-selection-copy">
             <strong>{{ calendar.display_name or calendar.calendar_id }}</strong>
-            <p class="muted">{{ calendar.calendar_id }}</p>
+            <p class="muted calendar-selection-location">{{ calendar.calendar_id }}</p>
           </div>
           <label class="checkbox">
             <input type="checkbox" name="enabled" {% if calendar.enabled %}checked{% endif %} onchange="this.form.submit()" /> Enabled
@@ -123,11 +123,11 @@
     <ul class="list-clean">
       {% for feed in ics_feeds %}
       <li class="stack">
-        <form action="/calendar/ics-feeds/toggle" method="post" class="toggle-row">
+        <form action="/calendar/ics-feeds/toggle" method="post" class="toggle-row calendar-selection-row">
           <input type="hidden" name="feed_id" value="{{ feed.id }}" />
-          <div>
+          <div class="calendar-selection-copy">
             <strong>{{ feed.label }}</strong>
-            <p class="muted">{{ feed.location }}</p>
+            <p class="muted calendar-selection-location">{{ feed.location }}</p>
           </div>
           <label class="checkbox">
             <input type="checkbox" name="enabled" {% if feed.enabled %}checked{% endif %} onchange="this.form.submit()" /> Enabled

@@ -43,6 +43,7 @@ async def dashboard(request: Request) -> HTMLResponse:
     if status["next_block"]:
         next_start = localize_datetime(status["next_block"].start_time, timezone_name)
         next_block_label = format_datetime_label(next_start)
+    can_mute_current_session = scheduler.current_session_mute_until() is not None
     return request.app.state.templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -51,6 +52,7 @@ async def dashboard(request: Request) -> HTMLResponse:
             "status": status,
             "current_datetime_label": current_datetime_label,
             "next_block_label": next_block_label,
+            "can_mute_current_session": can_mute_current_session,
             "schedule_view": build_schedule_view(
                 list(scheduler.current_blocks),
                 timezone_name=timezone_name,
@@ -81,6 +83,13 @@ async def manual_stop(request: Request) -> RedirectResponse:
 @login_required
 async def mute(request: Request, minutes: int = Form(30)) -> RedirectResponse:
     request.app.state.scheduler.mute_for(minutes)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.post("/actions/mute-current-session")
+@login_required
+async def mute_current_session(request: Request) -> RedirectResponse:
+    request.app.state.scheduler.mute_current_session()
     return RedirectResponse(url="/", status_code=303)
 
 

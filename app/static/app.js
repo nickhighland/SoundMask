@@ -1,30 +1,30 @@
 document.addEventListener("DOMContentLoaded", () => {
   const sidebarAccordion = document.querySelector("[data-sidebar-accordion]");
   if (sidebarAccordion) {
-    const mobileSidebarQuery = window.matchMedia("(max-width: 720px)");
-    let wasMobileSidebar = mobileSidebarQuery.matches;
+    const compactSidebarQuery = window.matchMedia("(max-width: 1080px)");
+    let wasCompactSidebar = compactSidebarQuery.matches;
     const syncSidebarAccordion = () => {
-      const isMobileSidebar = mobileSidebarQuery.matches;
-      if (isMobileSidebar) {
-        if (!sidebarAccordion.hasAttribute("data-ready") || !wasMobileSidebar) {
+      const isCompactSidebar = compactSidebarQuery.matches;
+      if (isCompactSidebar) {
+        if (!sidebarAccordion.hasAttribute("data-ready") || !wasCompactSidebar) {
           sidebarAccordion.open = false;
         }
       } else {
         sidebarAccordion.open = true;
       }
       sidebarAccordion.setAttribute("data-ready", "true");
-      sidebarAccordion.setAttribute("data-mobile", isMobileSidebar ? "true" : "false");
-      wasMobileSidebar = isMobileSidebar;
+      sidebarAccordion.setAttribute("data-mobile", isCompactSidebar ? "true" : "false");
+      wasCompactSidebar = isCompactSidebar;
     };
     const handleSidebarViewportChange = () => {
       window.requestAnimationFrame(syncSidebarAccordion);
     };
 
     syncSidebarAccordion();
-    if (typeof mobileSidebarQuery.addEventListener === "function") {
-      mobileSidebarQuery.addEventListener("change", handleSidebarViewportChange);
+    if (typeof compactSidebarQuery.addEventListener === "function") {
+      compactSidebarQuery.addEventListener("change", handleSidebarViewportChange);
     } else {
-      mobileSidebarQuery.addListener(handleSidebarViewportChange);
+      compactSidebarQuery.addListener(handleSidebarViewportChange);
     }
     window.addEventListener("resize", handleSidebarViewportChange);
   }

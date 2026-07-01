@@ -137,6 +137,14 @@ class Database:
         }
         if sound_columns and "category" not in sound_columns:
             conn.execute("ALTER TABLE sounds ADD COLUMN category TEXT")
+        if sound_columns:
+            conn.execute(
+                """
+                UPDATE sounds
+                SET category = 'Transportation'
+                WHERE LOWER(TRIM(category)) = 'travel & transit'
+                """
+            )
 
         trigger_cache_columns = {
             row["name"]

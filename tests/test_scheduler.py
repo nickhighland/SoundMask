@@ -367,3 +367,53 @@ def test_sync_window_bounds_start_at_local_day():
 
         assert window_start == datetime(2026, 6, 30, 4, 0, tzinfo=timezone.utc)
         assert window_end == now + timedelta(hours=scheduler.LOOKAHEAD_HOURS)
+
+
+def test_current_session_mute_until_tracks_the_active_appointment_window():
+    with TemporaryDirectory() as temp_dir:
+        paths = AppPaths(
+            root=temp_dir,
+            database=f"{temp_dir}/SoundMask.sqlite",
+            sounds=f"{temp_dir}/sounds",
+            tokens=f"{temp_dir}/tokens",
+            logs=f"{temp_dir}/logs",
+        )
+        config = AppConfig(
+            env="test",
+            host="127.0.0.1",
+            port=8080,
+            session_secret="test-secret",
+            google_client_secret=None,
+            paths=paths,
+        )
+        for folder in (paths.root, paths.sounds, paths.tokens, paths.logs):
+            Path(folder).mkdir(parents=True, exist_ok=True)
+
+        scheduler = SoundMaskScheduler(
+            init_db(config),
+            AudioManager(Path(paths.logs) / "mpv.sock"),
+            GoogleCalendarClient(config),
+            IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
+        )
+        scheduler.db.set_setting("start_buffer_minutes", 2)
+        scheduler.db.set_setting("end_buffer_minutes", 3)
+        scheduler.calendar_blocks = [
+            TriggerBlock(
+                start_time=datetime(2026, 7, 1, 17, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 7, 1, 18, 0, tzinfo=timezone.utc),
+                source="ics_title_match",
+            ),
+            TriggerBlock(
+                start_time=datetime(2026, 7, 1, 18, 0, tzinfo=timezone.utc),
+                end_time=datetime(2026, 7, 1, 19, 0, tzinfo=timezone.utc),
+                source="ics_title_match",
+            ),
+        ]
+
+        assert scheduler.current_session_mute_until(
+            now=datetime(2026, 7, 1, 17, 59, tzinfo=timezone.utc)
+        ) == datetime(2026, 7, 1, 18, 3, tzinfo=timezone.utc)
+        assert scheduler.current_session_mute_until(
+            now=datetime(2026, 7, 1, 18, 30, tzinfo=timezone.utc)
+        ) == datetime(2026, 7, 1, 19, 3, tzinfo=timezone.utc)

@@ -223,6 +223,35 @@ class SoundMaskScheduler:
         self.db.set_state("mute_until", until.isoformat())
         self.evaluate_playback()
 
+    def current_session_mute_until(
+        self,
+        now: datetime | None = None,
+    ) -> datetime | None:
+        current_time = now or datetime.now(timezone.utc)
+        settings = self.db.get_settings()
+        start_buffer_minutes = int(settings.get("start_buffer_minutes", 2))
+        end_buffer_minutes = int(settings.get("end_buffer_minutes", 3))
+        candidate_until: datetime | None = None
+
+        for block in sorted(self.calendar_blocks, key=lambda item: item.start_time):
+            playback_start = block.start_time - timedelta(minutes=start_buffer_minutes)
+            playback_end = block.end_time + timedelta(minutes=end_buffer_minutes)
+            if not (playback_start <= current_time <= playback_end):
+                continue
+            if candidate_until is None or playback_end < candidate_until:
+                candidate_until = playback_end
+
+        return candidate_until
+
+    def mute_current_session(self) -> bool:
+        mute_until = self.current_session_mute_until()
+        if mute_until is None:
+            return False
+        self.db.set_state("mute_until", mute_until.isoformat())
+        self.audio.stop(int(self.db.get_setting("fade_out_seconds", 0)))
+        self.evaluate_playback()
+        return True
+
     def clear_mute(self) -> None:
         self.db.set_state("mute_until", None)
         self.evaluate_playback()

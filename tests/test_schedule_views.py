@@ -42,6 +42,28 @@ def test_build_schedule_view_uses_configured_timezone():
     assert view["entries"][0]["end_label"] == "11:00 AM"
 
 
+def test_build_schedule_view_keeps_completed_sessions_from_today():
+    now = datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
+    blocks = [
+        TriggerBlock(
+            start_time=now - timedelta(hours=3),
+            end_time=now - timedelta(hours=2),
+            source="ics_title_match",
+        ),
+        TriggerBlock(
+            start_time=now + timedelta(hours=1),
+            end_time=now + timedelta(hours=2),
+            source="freebusy",
+        ),
+    ]
+
+    view = build_schedule_view(blocks, now=now)
+
+    assert len(view["entries"]) == 2
+    assert view["entries"][0]["active"] is False
+    assert len(view["timeline_segments"]) == 2
+
+
 def test_build_calendar_view_groups_blocks_by_day():
     now = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
     blocks = [

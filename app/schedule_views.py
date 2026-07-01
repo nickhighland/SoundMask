@@ -243,7 +243,7 @@ def build_schedule_view(
     for block in sorted(blocks, key=lambda item: item.start_time):
         start_local = block.start_time.astimezone(local_tz)
         end_local = block.end_time.astimezone(local_tz)
-        if end_local < local_now - timedelta(minutes=1):
+        if end_local <= day_start or start_local >= day_end:
             continue
 
         active = block.start_time <= current_time <= block.end_time

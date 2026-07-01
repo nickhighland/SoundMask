@@ -18,6 +18,9 @@
       <form action="/actions/manual-play" method="post"><button type="submit">Manual Play</button></form>
       <form action="/actions/manual-stop" method="post"><button type="submit" class="secondary">Stop</button></form>
       <form action="/actions/test-sound" method="post"><button type="submit" class="secondary">Test Sound</button></form>
+      <form action="/actions/mute-current-session" method="post">
+        <button type="submit" class="secondary" {% if not can_mute_current_session %}disabled{% endif %}>Mute Current Session</button>
+      </form>
     </div>
     <form
       action="/actions/volume"
@@ -101,7 +104,7 @@
       </div>
     </div>
     {% if not schedule_view.timeline_segments %}
-    <p class="muted dashboard-timeline-note">No playback is scheduled for the rest of today.</p>
+    <p class="muted dashboard-timeline-note">No playback is scheduled for today.</p>
     {% endif %}
 </section>
 </div>
