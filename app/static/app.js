@@ -2,17 +2,31 @@ document.addEventListener("DOMContentLoaded", () => {
   const sidebarAccordion = document.querySelector("[data-sidebar-accordion]");
   if (sidebarAccordion) {
     const mobileSidebarQuery = window.matchMedia("(max-width: 720px)");
-    const syncSidebarAccordion = (query) => {
-      sidebarAccordion.open = !query.matches;
+    let wasMobileSidebar = mobileSidebarQuery.matches;
+    const syncSidebarAccordion = () => {
+      const isMobileSidebar = mobileSidebarQuery.matches;
+      if (isMobileSidebar) {
+        if (!sidebarAccordion.hasAttribute("data-ready") || !wasMobileSidebar) {
+          sidebarAccordion.open = false;
+        }
+      } else {
+        sidebarAccordion.open = true;
+      }
       sidebarAccordion.setAttribute("data-ready", "true");
+      sidebarAccordion.setAttribute("data-mobile", isMobileSidebar ? "true" : "false");
+      wasMobileSidebar = isMobileSidebar;
+    };
+    const handleSidebarViewportChange = () => {
+      window.requestAnimationFrame(syncSidebarAccordion);
     };
 
-    syncSidebarAccordion(mobileSidebarQuery);
+    syncSidebarAccordion();
     if (typeof mobileSidebarQuery.addEventListener === "function") {
-      mobileSidebarQuery.addEventListener("change", syncSidebarAccordion);
+      mobileSidebarQuery.addEventListener("change", handleSidebarViewportChange);
     } else {
-      mobileSidebarQuery.addListener(syncSidebarAccordion);
+      mobileSidebarQuery.addListener(handleSidebarViewportChange);
     }
+    window.addEventListener("resize", handleSidebarViewportChange);
   }
 
   document.querySelectorAll("[data-autofocus]").forEach((element) => {

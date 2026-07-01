@@ -1030,6 +1030,14 @@ button {
     padding: 1rem;
   }
 
+  .sidebar {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    align-self: start;
+    box-shadow: 0 14px 24px rgba(20, 39, 66, 0.18);
+  }
+
   .hero-panel,
   .panel,
   .auth-card {
@@ -1049,7 +1057,8 @@ button {
     gap: 0.85rem;
   }
 
-  .sidebar-accordion:not([data-ready]) .sidebar-body {
+  .sidebar-accordion:not([data-ready]) .sidebar-body,
+  .sidebar-accordion[data-mobile="true"]:not([open]) .sidebar-body {
     display: none;
   }
 
@@ -1078,10 +1087,6 @@ button {
 
   .sidebar-accordion[open] .sidebar-toggle-icon {
     transform: rotate(-135deg);
-  }
-
-  .sidebar-accordion:not([open]) .sidebar-body {
-    display: none;
   }
 
   .sidebar-body {
