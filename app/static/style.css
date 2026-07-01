@@ -1014,6 +1014,37 @@ button {
     justify-self: end;
   }
 
+  .update-hero,
+  .hero-panel,
+  .dashboard-grid,
+  .grid-two,
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .content,
+  .sidebar,
+  .auth-page {
+    padding: 1rem;
+  }
+
+  .hero-panel,
+  .panel,
+  .auth-card {
+    padding: 1.2rem;
+    border-radius: 22px;
+  }
+
+  .metric-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-logo {
+    width: min(100%, 190px);
+  }
+
   .sidebar-accordion {
     gap: 0.85rem;
   }
@@ -1055,37 +1086,6 @@ button {
 
   .sidebar-footer {
     margin-top: 0;
-  }
-
-  .update-hero,
-  .hero-panel,
-  .dashboard-grid,
-  .grid-two,
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 720px) {
-  .content,
-  .sidebar,
-  .auth-page {
-    padding: 1rem;
-  }
-
-  .hero-panel,
-  .panel,
-  .auth-card {
-    padding: 1.2rem;
-    border-radius: 22px;
-  }
-
-  .metric-grid {
-    grid-template-columns: 1fr;
-  }
-
-  .brand-logo {
-    width: min(100%, 190px);
   }
 
   .update-mini-grid {
