@@ -21,7 +21,12 @@ MAX_STANDARD_VOLUME_PERCENT = 100
 
 
 class AudioManager:
-    def __init__(self, ipc_path: Path):
+    def __init__(
+        self,
+        ipc_path: Path,
+        *,
+        preferred_output_device: str | None = None,
+    ):
         self.ipc_path = ipc_path
         self._process: subprocess.Popen[str] | None = None
         self._current_sound: Path | None = None
@@ -30,6 +35,48 @@ class AudioManager:
         self._lock = RLock()
         self._last_error: str | None = None
         self.fade_in_seconds = 0
+        self._preferred_output_device = self._normalize_output_device(
+            preferred_output_device
+        )
+
+    def set_output_device(self, device_name: str | None) -> None:
+        with self._lock:
+            self._preferred_output_device = self._normalize_output_device(device_name)
+
+    def output_device(self) -> str:
+        return self._preferred_output_device
+
+    def list_output_devices(self) -> list[dict[str, str | bool | None]]:
+        default_device = [
+            {
+                "id": "auto",
+                "label": "System default",
+                "description": "Use the operating system default output device.",
+                "available": True,
+            }
+        ]
+        if platform.system().lower() != "linux" or not shutil.which("aplay"):
+            return default_device
+        try:
+            completed = subprocess.run(
+                ["aplay", "-L"],
+                check=False,
+                capture_output=True,
+                text=True,
+            )
+        except OSError:
+            return default_device
+        if completed.returncode != 0:
+            return default_device
+
+        devices = default_device.copy()
+        seen_ids = {"auto"}
+        for device in self._parse_aplay_devices(completed.stdout):
+            if device["id"] in seen_ids:
+                continue
+            devices.append(device)
+            seen_ids.add(str(device["id"]))
+        return devices
 
     def start(self, sound_path: Path, volume_percent: int) -> None:
         with self._lock:
@@ -206,6 +253,13 @@ class AudioManager:
         mpv_path = shutil.which("mpv")
         ffplay_path = shutil.which("ffplay")
         afplay_path = shutil.which("afplay")
+        output_devices = self.list_output_devices()
+        selected_device = self.output_device()
+        selected_device_details = next(
+            (device for device in output_devices if device["id"] == selected_device),
+            None,
+        )
+        output_device_available = bool(selected_device_details) or selected_device == "auto"
         return {
             "mpv_available": bool(mpv_path),
             "mpv_path": mpv_path,
@@ -218,6 +272,20 @@ class AudioManager:
             "last_error": self._last_error,
             "install_hint": self._install_hint(),
             "audio_device_hint": self._audio_device_hint(),
+            "output_devices": output_devices,
+            "selected_output_device": selected_device,
+            "selected_output_device_label": (
+                selected_device_details["label"]
+                if selected_device_details
+                else "Unavailable device"
+            ),
+            "selected_output_device_description": (
+                selected_device_details["description"]
+                if selected_device_details
+                else "The saved output device is not currently available."
+            ),
+            "output_device_available": output_device_available,
+            "device_selection_supported": bool(mpv_path),
         }
 
     def report_error(self, message: str) -> None:
@@ -357,18 +425,27 @@ class AudioManager:
         return "sudo apt install -y mpv"
 
     def _mpv_audio_args(self) -> list[str]:
+        output_device = self.output_device()
         if platform.system().lower() == "linux":
-            return [
+            args = [
                 "--ao=alsa",
                 f"--volume-max={MAX_MPV_VOLUME_PERCENT}",
             ]
-        return [f"--volume-max={MAX_MPV_VOLUME_PERCENT}"]
+            if output_device != "auto":
+                args.append(f"--audio-device=alsa/{output_device}")
+            return args
+        args = [f"--volume-max={MAX_MPV_VOLUME_PERCENT}"]
+        if output_device != "auto":
+            args.append(f"--audio-device={output_device}")
+        return args
 
     def _backend_env(self, backend: str) -> dict[str, str] | None:
         if platform.system().lower() != "linux" or backend != "ffplay":
             return None
         env = os.environ.copy()
         env.setdefault("SDL_AUDIODRIVER", "alsa")
+        if self.output_device() != "auto":
+            env["AUDIODEV"] = self.output_device()
         return env
 
     def _normalized_volume_percent(self, volume_percent: int, backend: str) -> int:
@@ -404,3 +481,49 @@ class AudioManager:
                 "`alsamixer`."
             )
         return "No usable audio output device is available."
+
+    def _normalize_output_device(self, value: str | None) -> str:
+        candidate = (value or "").strip()
+        return candidate or "auto"
+
+    def _parse_aplay_devices(
+        self,
+        output: str,
+    ) -> list[dict[str, str | bool | None]]:
+        devices: list[dict[str, str | bool | None]] = []
+        current_id: str | None = None
+        current_description: list[str] = []
+
+        def flush_current() -> None:
+            nonlocal current_id, current_description
+            if not current_id:
+                current_description = []
+                return
+            description = " ".join(
+                line.strip() for line in current_description if line.strip()
+            )
+            devices.append(
+                {
+                    "id": current_id,
+                    "label": current_id,
+                    "description": description or current_id,
+                    "available": True,
+                }
+            )
+            current_id = None
+            current_description = []
+
+        for raw_line in output.splitlines():
+            line = raw_line.rstrip()
+            if not line:
+                flush_current()
+                continue
+            if raw_line[:1].isspace():
+                if current_id:
+                    current_description.append(line)
+                continue
+            flush_current()
+            current_id = line.strip()
+
+        flush_current()
+        return devices

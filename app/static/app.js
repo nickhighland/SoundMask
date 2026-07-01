@@ -157,6 +157,56 @@ document.addEventListener("DOMContentLoaded", () => {
     syncLayerCard();
   });
 
+  document.querySelectorAll("[data-builder-preview-button]").forEach((button) => {
+    const form = document.querySelector("#sound-mix-form");
+    const player = document.querySelector("[data-builder-preview-player]");
+    const status = document.querySelector("[data-builder-preview-status]");
+    if (
+      !(button instanceof HTMLButtonElement)
+      || !(form instanceof HTMLFormElement)
+      || !(player instanceof HTMLAudioElement)
+      || !(status instanceof HTMLElement)
+    ) {
+      return;
+    }
+
+    let objectUrl = null;
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "Preparing browser preview...";
+      try {
+        const formData = new FormData(form);
+        const response = await fetch("/sounds/preview-builder", {
+          method: "POST",
+          body: new URLSearchParams(formData),
+          headers: {
+            Accept: "audio/wav,audio/flac,text/plain",
+          },
+        });
+        if (!response.ok) {
+          const detail = await response.text();
+          throw new Error(detail || `Preview build failed (${response.status})`);
+        }
+        const blob = await response.blob();
+        if (objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+        }
+        objectUrl = URL.createObjectURL(blob);
+        player.src = objectUrl;
+        player.dataset.ready = "true";
+        await player.play();
+        status.textContent = "Browser preview is playing. This does not interrupt the appliance output.";
+      } catch (error) {
+        status.textContent = error instanceof Error
+          ? error.message
+          : "Browser preview could not be prepared.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  });
+
   document.querySelectorAll("[data-log-viewer]").forEach((viewer) => {
     const endpoint = viewer.dataset.endpoint;
     const sourceSelect = viewer.querySelector("[data-log-source]");

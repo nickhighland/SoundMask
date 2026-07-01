@@ -62,6 +62,15 @@ class ResolvedSoundMixLayer:
 
 
 @dataclass(slots=True)
+class SoundPreset:
+    id: str
+    name: str
+    layers: list[SoundMixLayer]
+    created_at: str
+    updated_at: str
+
+
+@dataclass(slots=True)
 class CalendarAccount:
     id: int
     provider: str

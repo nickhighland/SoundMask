@@ -83,6 +83,33 @@
   </div>
 </section>
 
+<section class="panel dashboard-health">
+  <div class="section-heading dashboard-section-heading">
+    <div>
+      <p class="eyebrow">System Health</p>
+      <h2>{{ health_summary.headline }}</h2>
+    </div>
+    <span class="status-pill{% if health_summary.warning_count %} warning{% else %} ok{% endif %}">
+      {% if health_summary.warning_count %}
+      {{ health_summary.warning_count }} attention
+      {% else %}
+      Healthy
+      {% endif %}
+    </span>
+  </div>
+  <div class="dashboard-health-grid">
+    {% for item in health_summary.checks %}
+    <article class="dashboard-health-card">
+      <div class="dashboard-health-card-top">
+        <span>{{ item.label }}</span>
+        <span class="status-pill {{ item.state }}">{{ item.value }}</span>
+      </div>
+      <p class="muted">{{ item.detail }}</p>
+    </article>
+    {% endfor %}
+  </div>
+</section>
+
 <section class="panel dashboard-today-schedule">
   <div class="section-heading dashboard-section-heading">
       <div>

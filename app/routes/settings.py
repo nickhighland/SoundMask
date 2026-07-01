@@ -25,11 +25,14 @@ def _settings_context(
 ) -> dict[str, object]:
     config = request.app.state.config
     settings = request.app.state.db.get_settings()
+    audio_diagnostics = request.app.state.audio.diagnostics()
     return {
         "settings": settings,
         "settings_error": settings_error,
         "timezone_info": timezone_context(settings.get("timezone_name")),
         "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
+        "audio_diagnostics": audio_diagnostics,
+        "audio_output_devices": audio_diagnostics.get("output_devices", []),
         "network_supported": config.is_production,
         "network_error": network_error,
         "network_status": network_status or load_network_status(config),
@@ -61,6 +64,7 @@ async def update_settings(
     max_event_duration_minutes: int = Form(...),
     ignore_all_day_events: str | None = Form(None),
     volume_percent: int = Form(...),
+    audio_output_device: str = Form("auto"),
     fade_in_seconds: int = Form(...),
     fade_out_seconds: int = Form(...),
     manual_play_duration_minutes: int = Form(...),
@@ -90,6 +94,8 @@ async def update_settings(
     db.set_setting("max_event_duration_minutes", max_event_duration_minutes)
     db.set_setting("ignore_all_day_events", ignore_all_day_events == "on")
     db.set_setting("volume_percent", _normalized_volume_percent(volume_percent))
+    request.app.state.audio.set_output_device(audio_output_device)
+    db.set_setting("audio_output_device", request.app.state.audio.output_device())
     db.set_setting("fade_in_seconds", fade_in_seconds)
     db.set_setting("fade_out_seconds", fade_out_seconds)
     db.set_setting(

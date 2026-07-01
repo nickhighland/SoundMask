@@ -7,6 +7,7 @@ from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Resp
 
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
+from app.dashboard_health import build_dashboard_health
 from app.display import format_datetime_label
 from app.schedule_views import build_schedule_view
 from app.timezones import localize_datetime
@@ -60,6 +61,12 @@ async def dashboard(request: Request) -> HTMLResponse:
             "fake_blocks": db.get_state("fake_blocks", []),
             "audio_status": audio.status(),
             "audio_diagnostics": audio.diagnostics(),
+            "health_summary": build_dashboard_health(
+                request.app.state.config,
+                scheduler,
+                audio,
+                timezone_name=timezone_name,
+            ),
             "max_volume_percent": MAX_MPV_VOLUME_PERCENT,
         },
     )

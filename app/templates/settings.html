@@ -91,6 +91,14 @@
             <input type="number" min="0" max="{{ max_volume_percent }}" name="volume_percent" value="{{ settings.volume_percent }}" />
           </label>
           <label>
+            Output device
+            <select name="audio_output_device">
+              {% for device in audio_output_devices %}
+              <option value="{{ device.id }}" {% if settings.audio_output_device == device.id %}selected{% endif %}>{{ device.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label>
             Fade in seconds
             <input type="number" min="0" name="fade_in_seconds" value="{{ settings.fade_in_seconds }}" />
           </label>
@@ -102,6 +110,10 @@
         <div class="note-card">
           <strong>Volume range</strong>
           <p class="muted"><code>100%</code> is standard playback. Values from <code>101%</code> to <code>{{ max_volume_percent }}%</code> use <code>mpv</code> boost for extra headroom on the appliance. Fallback players still cap at their native maximum.</p>
+        </div>
+        <div class="note-card">
+          <strong>Output routing</strong>
+          <p class="muted">{{ audio_diagnostics.selected_output_device_label }}. {{ audio_diagnostics.selected_output_device_description }}</p>
         </div>
         <div class="note-card">
           <strong>Diagnostics</strong>

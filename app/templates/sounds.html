@@ -48,6 +48,16 @@
       <strong>Master volume</strong>
       <p class="muted">The dashboard slider controls the final output level for this mix. It is currently set to <code>{{ volume_percent }} / {{ max_volume_percent }}%</code>.</p>
     </div>
+    <div class="note-card">
+      <strong>Loudness normalization</strong>
+      <p class="muted">
+        {% if mix_diagnostics.normalization_supported %}
+        SoundMask renders the current mix through <code>ffmpeg</code> and targets approximately <code>{{ mix_diagnostics.normalization_target_lufs }} LUFS</code> so <code>100%</code> feels more consistent across sounds.
+        {% else %}
+        Install <code>ffmpeg</code> to normalize loudness across different sounds and layered mixes.
+        {% endif %}
+      </p>
+    </div>
     {% if mix_layers %}
     <ul class="list-clean compact-list mix-layer-list">
       {% for layer in mix_layers %}
@@ -65,10 +75,60 @@
     {% endif %}
     <div class="button-row">
       <button type="submit" form="sound-mix-form">Save Current Mix</button>
+      <button type="submit" form="sound-mix-form" formaction="/sounds/presets">Save as Preset</button>
       <form action="/sounds/test-mix" method="post">
         <button type="submit" class="secondary">Test Current Mix</button>
       </form>
+      <button type="button" class="secondary" data-builder-preview-button>Preview in Browser</button>
     </div>
+    <label class="builder-preset-field">
+      Preset name
+      <input type="text" name="preset_name" form="sound-mix-form" placeholder="e.g. Rain + Birds" />
+    </label>
+    <div class="builder-preview-panel">
+      <audio controls preload="none" class="sound-preview builder-preview-player" data-builder-preview-player data-ready="false"></audio>
+      <p class="muted small-text" data-builder-preview-status>Browser preview plays the draft mix here without interrupting the appliance output.</p>
+    </div>
+    {% if sound_presets %}
+    <section class="stack">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">Presets</p>
+          <h2>Saved scenes</h2>
+        </div>
+      </div>
+      <ul class="list-clean compact-list preset-list">
+        {% for preset in sound_presets %}
+        <li class="preset-row">
+          <div class="preset-copy">
+            <div class="preset-heading">
+              <strong>{{ preset.name }}</strong>
+              {% if preset.is_active %}
+              <span class="status-pill ok">Active</span>
+              {% endif %}
+            </div>
+            <p class="muted">{{ preset.summary }}{% if preset.missing_layers %} · {{ preset.missing_layers }} missing{% endif %}</p>
+          </div>
+          <div class="button-row compact">
+            <form action="/sounds/presets/apply" method="post">
+              <input type="hidden" name="preset_id" value="{{ preset.id }}" />
+              <button type="submit" class="secondary">Load</button>
+            </form>
+            <form action="/sounds/presets/delete" method="post">
+              <input type="hidden" name="preset_id" value="{{ preset.id }}" />
+              <button type="submit" class="danger">Delete</button>
+            </form>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+    </section>
+    {% else %}
+    <div class="empty-state">
+      <h3>No presets saved yet</h3>
+      <p class="muted">Build a mix below, then save it as a named preset so you can switch back instantly later.</p>
+    </div>
+    {% endif %}
   </article>
 
   <article class="panel stack">

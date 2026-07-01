@@ -101,6 +101,27 @@ def test_audio_start_uses_alsa_output_with_mpv_on_linux(monkeypatch):
     assert captured["env"] is None
 
 
+def test_audio_start_routes_selected_linux_output_device_to_mpv(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    monkeypatch.setattr(
+        "app.audio.shutil.which",
+        lambda name: "/usr/bin/mpv" if name == "mpv" else None,
+    )
+    captured: dict[str, object] = {}
+
+    def fake_launch(self, command, backend, sound_path, volume_percent, env=None):
+        captured["command"] = command
+        return False
+
+    monkeypatch.setattr(AudioManager, "_launch_process", fake_launch)
+
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager.set_output_device("plughw:1,0")
+    manager.start(Path("/tmp/example.mp3"), 35)
+
+    assert "--audio-device=alsa/plughw:1,0" in captured["command"]
+
+
 def test_audio_test_uses_alsa_sdl_driver_with_ffplay_on_linux(monkeypatch):
     monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
     monkeypatch.setattr(
@@ -125,6 +146,32 @@ def test_audio_test_uses_alsa_sdl_driver_with_ffplay_on_linux(monkeypatch):
 
     assert result["ok"] is True
     assert captured["env"]["SDL_AUDIODRIVER"] == "alsa"
+
+
+def test_audio_test_routes_selected_linux_output_device_to_ffplay_env(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    monkeypatch.setattr(
+        "app.audio.shutil.which",
+        lambda name: "/usr/bin/ffplay" if name == "ffplay" else None,
+    )
+    captured: dict[str, object] = {}
+
+    class FakeProcess:
+        def poll(self):
+            return None
+
+    def fake_popen(command, **kwargs):
+        captured["env"] = kwargs.get("env")
+        return FakeProcess()
+
+    monkeypatch.setattr("app.audio.subprocess.Popen", fake_popen)
+
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager.set_output_device("plughw:1,0")
+    result = manager.test(Path("/tmp/example.mp3"), 35)
+
+    assert result["ok"] is True
+    assert captured["env"]["AUDIODEV"] == "plughw:1,0"
 
 
 def test_audio_test_clamps_ffplay_volume_to_supported_max(monkeypatch):
@@ -214,3 +261,30 @@ def test_audio_set_volume_ignores_mpv_control_race(monkeypatch):
     manager.set_volume(35)
 
     assert manager.is_playing() is True
+
+
+def test_audio_diagnostics_parse_linux_output_devices(monkeypatch):
+    monkeypatch.setattr("app.audio.platform.system", lambda: "Linux")
+    monkeypatch.setattr(
+        "app.audio.shutil.which",
+        lambda name: "/usr/bin/aplay" if name == "aplay" else "/usr/bin/mpv" if name == "mpv" else None,
+    )
+
+    class CompletedProcess:
+        returncode = 0
+        stdout = (
+            "default:CARD=Device\n"
+            "    USB Audio Device\n"
+            "plughw:CARD=Device,DEV=0\n"
+            "    Direct hardware device\n"
+        )
+
+    monkeypatch.setattr("app.audio.subprocess.run", lambda *args, **kwargs: CompletedProcess())
+
+    manager = AudioManager(Path("/tmp/soundmask.sock"))
+    manager.set_output_device("plughw:CARD=Device,DEV=0")
+    diagnostics = manager.diagnostics()
+
+    assert diagnostics["output_device_available"] is True
+    assert diagnostics["selected_output_device_label"] == "plughw:CARD=Device,DEV=0"
+    assert len(diagnostics["output_devices"]) == 3

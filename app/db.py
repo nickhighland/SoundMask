@@ -13,6 +13,7 @@ from app.models import (
     CalendarAccount,
     ResolvedSoundMixLayer,
     SoundMixLayer,
+    SoundPreset,
     SoundRecord,
     TitleMatchRule,
     TriggerBlock,
@@ -34,6 +35,7 @@ DEFAULT_SETTINGS: dict[str, Any] = {
     "active_hours_end": "21:00",
     "timezone_name": SYSTEM_TIMEZONE,
     "volume_percent": DEFAULT_VOLUME_PERCENT,
+    "audio_output_device": "auto",
     "fade_in_seconds": 2,
     "fade_out_seconds": 3,
     "manual_play_duration_minutes": 60,
@@ -452,6 +454,113 @@ class Database:
             if layer.sound_id != sound_id
         ]
         self.set_sound_mix_layers(remaining_layers)
+
+    def list_sound_presets(self) -> list[SoundPreset]:
+        payload = self.get_state("sound_presets", [])
+        presets: list[SoundPreset] = []
+        for item in payload:
+            if not isinstance(item, dict):
+                continue
+            preset_id = str(item.get("id") or "").strip()
+            preset_name = str(item.get("name") or "").strip()
+            created_at = str(item.get("created_at") or "").strip()
+            updated_at = str(item.get("updated_at") or "").strip()
+            if not preset_id or not preset_name:
+                continue
+            layers: list[SoundMixLayer] = []
+            for raw_layer in item.get("layers", []):
+                try:
+                    sound_id = int(raw_layer.get("sound_id"))
+                    volume_percent = max(
+                        0,
+                        min(int(raw_layer.get("volume_percent", 100)), 100),
+                    )
+                except (TypeError, ValueError, AttributeError):
+                    continue
+                layers.append(
+                    SoundMixLayer(
+                        sound_id=sound_id,
+                        volume_percent=volume_percent,
+                    )
+                )
+            presets.append(
+                SoundPreset(
+                    id=preset_id,
+                    name=preset_name,
+                    layers=layers,
+                    created_at=created_at or utcnow_iso(),
+                    updated_at=updated_at or created_at or utcnow_iso(),
+                )
+            )
+        return sorted(presets, key=lambda preset: preset.name.casefold())
+
+    def get_sound_preset(self, preset_id: str) -> SoundPreset | None:
+        for preset in self.list_sound_presets():
+            if preset.id == preset_id:
+                return preset
+        return None
+
+    def save_sound_preset(
+        self,
+        name: str,
+        layers: list[SoundMixLayer],
+    ) -> SoundPreset:
+        normalized_name = " ".join(name.strip().split())
+        if not normalized_name:
+            raise ValueError("Preset name is required.")
+        if not layers:
+            raise ValueError("Select at least one sound layer first.")
+
+        now = utcnow_iso()
+        presets = self.list_sound_presets()
+        updated_preset: SoundPreset | None = None
+        updated_payload: list[dict[str, Any]] = []
+        for preset in presets:
+            if preset.name.casefold() == normalized_name.casefold():
+                updated_preset = SoundPreset(
+                    id=preset.id,
+                    name=normalized_name,
+                    layers=layers,
+                    created_at=preset.created_at,
+                    updated_at=now,
+                )
+                updated_payload.append(self._sound_preset_payload(updated_preset))
+            else:
+                updated_payload.append(self._sound_preset_payload(preset))
+        if updated_preset is None:
+            updated_preset = SoundPreset(
+                id=str(uuid4()),
+                name=normalized_name,
+                layers=layers,
+                created_at=now,
+                updated_at=now,
+            )
+            updated_payload.append(self._sound_preset_payload(updated_preset))
+        self.set_state("sound_presets", updated_payload)
+        return updated_preset
+
+    def delete_sound_preset(self, preset_id: str) -> None:
+        payload = [
+            self._sound_preset_payload(preset)
+            for preset in self.list_sound_presets()
+            if preset.id != preset_id
+        ]
+        self.set_state("sound_presets", payload)
+
+    def _sound_preset_payload(self, preset: SoundPreset) -> dict[str, Any]:
+        return {
+            "id": preset.id,
+            "name": preset.name,
+            "created_at": preset.created_at,
+            "updated_at": preset.updated_at,
+            "layers": [
+                {
+                    "sound_id": int(layer.sound_id),
+                    "volume_percent": max(0, min(int(layer.volume_percent), 100)),
+                }
+                for layer in preset.layers
+            ],
+        }
 
     def get_title_rules(self) -> list[TitleMatchRule]:
         with self.connect() as conn:

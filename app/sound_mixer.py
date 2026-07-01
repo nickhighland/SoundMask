@@ -9,6 +9,8 @@ from pathlib import Path
 from app.models import ResolvedSoundMixLayer
 
 MIX_RENDER_SECONDS = 600
+PREVIEW_RENDER_SECONDS = 45
+NORMALIZED_TARGET_LUFS = -18.0
 
 
 class SoundMixManager:
@@ -22,6 +24,9 @@ class SoundMixManager:
             "ffmpeg_available": bool(ffmpeg_path),
             "ffmpeg_path": ffmpeg_path,
             "render_seconds": MIX_RENDER_SECONDS,
+            "preview_seconds": PREVIEW_RENDER_SECONDS,
+            "normalization_supported": bool(ffmpeg_path),
+            "normalization_target_lufs": NORMALIZED_TARGET_LUFS,
         }
 
     def describe_layers(self, layers: list[ResolvedSoundMixLayer]) -> str:
@@ -37,23 +42,59 @@ class SoundMixManager:
     def playback_source(self, layers: list[ResolvedSoundMixLayer]) -> Path | None:
         if not layers:
             return None
-        first_layer = layers[0]
-        if len(layers) == 1 and first_layer.volume_percent == 100:
-            return first_layer.sound.path
 
         ffmpeg_path = shutil.which("ffmpeg")
         if not ffmpeg_path:
+            first_layer = layers[0]
+            if len(layers) == 1 and first_layer.volume_percent == 100:
+                return first_layer.sound.path
             raise RuntimeError(
-                "Install ffmpeg to use layered mixes or per-layer sound levels."
+                "Install ffmpeg to use layered mixes, loudness normalization, or per-layer sound levels."
             )
-        return self._render_mix(Path(ffmpeg_path), layers)
+        return self._render_mix(
+            Path(ffmpeg_path),
+            layers,
+            purpose="playback",
+            output_suffix=".flac",
+            duration_seconds=MIX_RENDER_SECONDS,
+            codec="flac",
+        )
+
+    def preview_source(self, layers: list[ResolvedSoundMixLayer]) -> Path | None:
+        if not layers:
+            return None
+
+        ffmpeg_path = shutil.which("ffmpeg")
+        if not ffmpeg_path:
+            first_layer = layers[0]
+            if len(layers) == 1 and first_layer.volume_percent == 100:
+                return first_layer.sound.path
+            raise RuntimeError(
+                "Install ffmpeg to preview layered mixes in the browser."
+            )
+        return self._render_mix(
+            Path(ffmpeg_path),
+            layers,
+            purpose="preview",
+            output_suffix=".wav",
+            duration_seconds=PREVIEW_RENDER_SECONDS,
+            codec="pcm_s16le",
+        )
 
     def _render_mix(
         self,
         ffmpeg_path: Path,
         layers: list[ResolvedSoundMixLayer],
+        *,
+        purpose: str,
+        output_suffix: str,
+        duration_seconds: int,
+        codec: str,
     ) -> Path:
-        output_path = self.mix_dir / f"{self._mix_fingerprint(layers)}.flac"
+        output_path = self.mix_dir / (
+            f"{self._mix_fingerprint(layers, purpose=purpose, duration_seconds=duration_seconds)}"
+            f"{output_suffix}"
+        )
         if output_path.exists():
             return output_path
 
@@ -69,8 +110,8 @@ class SoundMixManager:
 
         filter_parts = [
             (
-                f"[{index}:a]volume="
-                f"{max(0, min(layer.volume_percent, 100)) / 100:.4f}"
+                f"[{index}:a]loudnorm=I={NORMALIZED_TARGET_LUFS:.1f}:LRA=11:TP=-1.5,"
+                f"volume={max(0, min(layer.volume_percent, 100)) / 100:.4f}"
                 f"[a{index}]"
             )
             for index, layer in enumerate(layers)
@@ -90,13 +131,13 @@ class SoundMixManager:
                 "-map",
                 "[out]",
                 "-t",
-                str(MIX_RENDER_SECONDS),
+                str(duration_seconds),
                 "-ar",
                 "44100",
                 "-ac",
                 "2",
                 "-c:a",
-                "flac",
+                codec,
                 str(output_path),
             ]
         )
@@ -107,7 +148,13 @@ class SoundMixManager:
             raise RuntimeError("ffmpeg could not build the layered mix.") from exc
         return output_path
 
-    def _mix_fingerprint(self, layers: list[ResolvedSoundMixLayer]) -> str:
+    def _mix_fingerprint(
+        self,
+        layers: list[ResolvedSoundMixLayer],
+        *,
+        purpose: str,
+        duration_seconds: int,
+    ) -> str:
         payload = [
             {
                 "sound_id": layer.sound.id,
@@ -122,5 +169,13 @@ class SoundMixManager:
             }
             for layer in layers
         ]
-        encoded = json.dumps(payload, sort_keys=True).encode("utf-8")
+        encoded = json.dumps(
+            {
+                "purpose": purpose,
+                "duration_seconds": duration_seconds,
+                "layers": payload,
+                "normalization_target_lufs": NORMALIZED_TARGET_LUFS,
+            },
+            sort_keys=True,
+        ).encode("utf-8")
         return f"mix-{hashlib.sha256(encoded).hexdigest()[:16]}"

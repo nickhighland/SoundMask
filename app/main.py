@@ -46,6 +46,7 @@ templates.env.filters["time_label"] = format_time_label
 database = init_db(config)
 sync_bundled_sounds(config, database)
 audio = AudioManager(config.paths.logs / "mpv.sock")
+audio.set_output_device(database.get_setting("audio_output_device", "auto"))
 calendar_client = GoogleCalendarClient(config)
 ics_calendar_client = IcsCalendarClient(config)
 sound_mixer = SoundMixManager(config.paths.root / "mixes")

@@ -226,3 +226,35 @@ def test_available_sound_categories_include_standard_and_custom_names() -> None:
 
 def test_normalize_sound_category_name_maps_legacy_transport_label() -> None:
     assert normalize_sound_category_name("Travel & Transit") == "Transportation"
+
+
+def test_sound_presets_round_trip_and_replace_matching_names() -> None:
+    with TemporaryDirectory() as temp_dir:
+        db, paths = _make_db(temp_dir)
+        rain_path = Path(paths.sounds) / "Rain.mp3"
+        birds_path = Path(paths.sounds) / "Birds.mp3"
+        rain_path.write_bytes(b"demo")
+        birds_path.write_bytes(b"demo")
+        rain = db.add_sound("Rain.mp3", "Rain", str(rain_path), "audio/mpeg")
+        birds = db.add_sound("Birds.mp3", "Birds", str(birds_path), "audio/mpeg")
+
+        original = db.save_sound_preset(
+            "Rain + Birds",
+            [
+                SoundMixLayer(sound_id=rain.id, volume_percent=100),
+                SoundMixLayer(sound_id=birds.id, volume_percent=45),
+            ],
+        )
+        updated = db.save_sound_preset(
+            "rain + birds",
+            [SoundMixLayer(sound_id=birds.id, volume_percent=60)],
+        )
+
+        presets = db.list_sound_presets()
+
+        assert len(presets) == 1
+        assert presets[0].id == original.id == updated.id
+        assert presets[0].name == "rain + birds"
+        assert [(layer.sound_id, layer.volume_percent) for layer in presets[0].layers] == [
+            (birds.id, 60),
+        ]

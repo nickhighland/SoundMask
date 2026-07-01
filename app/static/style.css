@@ -475,6 +475,45 @@ code {
   gap: 1rem;
 }
 
+.dashboard-health {
+  display: grid;
+  gap: 1rem;
+}
+
+.dashboard-health-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.9rem;
+}
+
+.dashboard-health-card {
+  display: grid;
+  gap: 0.55rem;
+  padding: 1rem 1.05rem;
+  border-radius: 20px;
+  border: 1px solid rgba(102, 127, 162, 0.14);
+  background: rgba(248, 251, 255, 0.8);
+}
+
+.dashboard-health-card-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: start;
+  gap: 0.8rem;
+}
+
+.dashboard-health-card-top > span:first-child {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dashboard-health-card p {
+  margin: 0;
+}
+
 .dashboard-section-heading {
   align-items: flex-end;
 }
@@ -1039,6 +1078,21 @@ code {
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
 }
 
+.status-pill.ok {
+  color: #ffffff;
+  background: linear-gradient(135deg, #2b88d8, #1d63cb);
+}
+
+.status-pill.warning {
+  color: #ffffff;
+  background: linear-gradient(135deg, #e29d34, #c96c14);
+}
+
+.status-pill.error {
+  color: #ffffff;
+  background: linear-gradient(135deg, #ca5d63, #b13f4c);
+}
+
 .status-pill.neutral {
   color: var(--accent-strong);
   background: rgba(50, 117, 217, 0.10);
@@ -1046,6 +1100,19 @@ code {
 
 .sound-workspace {
   align-items: start;
+}
+
+.builder-preset-field {
+  align-items: start;
+}
+
+.builder-preview-panel {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.builder-preview-player[data-ready="false"] {
+  display: none;
 }
 
 .sound-upload-grid {
@@ -1256,6 +1323,31 @@ code {
 
 .sound-card-actions .danger {
   grid-column: 1 / -1;
+}
+
+.preset-list {
+  gap: 0.7rem;
+}
+
+.preset-row {
+  align-items: flex-start;
+}
+
+.preset-copy {
+  min-width: 0;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.preset-heading {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.55rem;
+}
+
+.preset-copy p {
+  margin: 0;
 }
 
 .sound-card-actions button {
