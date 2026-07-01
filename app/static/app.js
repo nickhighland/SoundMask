@@ -1,4 +1,20 @@
 document.addEventListener("DOMContentLoaded", () => {
+  const sidebarAccordion = document.querySelector("[data-sidebar-accordion]");
+  if (sidebarAccordion) {
+    const mobileSidebarQuery = window.matchMedia("(max-width: 720px)");
+    const syncSidebarAccordion = (query) => {
+      sidebarAccordion.open = !query.matches;
+      sidebarAccordion.setAttribute("data-ready", "true");
+    };
+
+    syncSidebarAccordion(mobileSidebarQuery);
+    if (typeof mobileSidebarQuery.addEventListener === "function") {
+      mobileSidebarQuery.addEventListener("change", syncSidebarAccordion);
+    } else {
+      mobileSidebarQuery.addListener(syncSidebarAccordion);
+    }
+  }
+
   document.querySelectorAll("[data-autofocus]").forEach((element) => {
     element.focus();
   });
