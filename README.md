@@ -2,6 +2,8 @@
 
 SoundMask is a local-first sound-masking appliance for counseling offices. It runs a FastAPI web UI, watches either Google Calendar or a selected `.ics` feed/file, and loops a chosen local sound through `mpv` whenever an appointment window is active.
 
+See [CHANGELOG.md](CHANGELOG.md) for the running release history.
+
 ## Privacy
 
 SoundMask does not use microphones, recording, transcription, analytics, remote backends, or cloud databases. All control data stays on the device. In Title Match Mode, SoundMask must read Google Calendar event summaries to decide whether a rule matches. Use a generic appointment title such as `Counseling appointment` and avoid client names or PHI in event titles.
