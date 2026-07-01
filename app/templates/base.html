@@ -18,20 +18,28 @@
           />
           <span class="sidebar-version">v{{ app_version }}</span>
         </div>
-        <nav class="nav-list">
-          <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
-          <a class="nav-link {% if request.url.path.startswith('/calendar-view') %}active{% endif %}" href="/calendar-view">Calendar</a>
-          <a class="nav-link {% if request.url.path == '/calendar' or request.url.path.startswith('/calendar/') %}active{% endif %}" href="/calendar">Calendar Settings</a>
-          <a class="nav-link {% if request.url.path.startswith('/sounds') %}active{% endif %}" href="/sounds">Sounds</a>
-          <a class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}" href="/settings">Settings</a>
-          <a class="nav-link {% if request.url.path.startswith('/logs') %}active{% endif %}" href="/logs">Logs</a>
-          <a class="nav-link {% if request.url.path.startswith('/updates') %}active{% endif %}" href="/updates">Updates</a>
-        </nav>
-        <div class="sidebar-footer">
-          <form action="/logout" method="post">
-            <button type="submit" class="ghost">Logout</button>
-          </form>
-        </div>
+        <details class="sidebar-accordion">
+          <summary class="sidebar-summary">
+            <span>Menu</span>
+            <span class="sidebar-toggle-icon" aria-hidden="true"></span>
+          </summary>
+          <div class="sidebar-body">
+            <nav class="nav-list">
+              <a class="nav-link {% if request.url.path == '/' %}active{% endif %}" href="/">Dashboard</a>
+              <a class="nav-link {% if request.url.path.startswith('/calendar-view') %}active{% endif %}" href="/calendar-view">Calendar</a>
+              <a class="nav-link {% if request.url.path == '/calendar' or request.url.path.startswith('/calendar/') %}active{% endif %}" href="/calendar">Calendar Settings</a>
+              <a class="nav-link {% if request.url.path.startswith('/sounds') %}active{% endif %}" href="/sounds">Sounds</a>
+              <a class="nav-link {% if request.url.path.startswith('/settings') %}active{% endif %}" href="/settings">Settings</a>
+              <a class="nav-link {% if request.url.path.startswith('/logs') %}active{% endif %}" href="/logs">Logs</a>
+              <a class="nav-link {% if request.url.path.startswith('/updates') %}active{% endif %}" href="/updates">Updates</a>
+            </nav>
+            <div class="sidebar-footer">
+              <form action="/logout" method="post">
+                <button type="submit" class="ghost">Logout</button>
+              </form>
+            </div>
+          </div>
+        </details>
       </aside>
       <main class="content">
         <div class="page-frame">

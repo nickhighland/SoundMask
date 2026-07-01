@@ -103,6 +103,42 @@ code {
   white-space: nowrap;
 }
 
+.sidebar-accordion {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sidebar-summary {
+  display: none;
+}
+
+.sidebar-summary::-webkit-details-marker {
+  display: none;
+}
+
+.sidebar-summary::marker {
+  content: "";
+}
+
+.sidebar-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 1.5rem;
+  min-height: 0;
+}
+
+.sidebar-toggle-icon {
+  width: 0.72rem;
+  height: 0.72rem;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(45deg);
+  transition: transform 140ms ease;
+}
+
 .nav-list {
   display: grid;
   gap: 0.55rem;
@@ -962,8 +998,63 @@ button {
   }
 
   .sidebar {
+    gap: 1rem;
     border-right: 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  .brand-card {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 0.85rem;
+    padding: 1rem 1.1rem;
+  }
+
+  .sidebar-version {
+    justify-self: end;
+  }
+
+  .sidebar-accordion {
+    gap: 0.85rem;
+  }
+
+  .sidebar-summary {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.85rem;
+    padding: 0.92rem 1rem;
+    border-radius: 18px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: #f7fbff;
+    font-size: 0.83rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    cursor: pointer;
+    user-select: none;
+    list-style: none;
+  }
+
+  .sidebar-summary:hover {
+    background: rgba(255, 255, 255, 0.16);
+  }
+
+  .sidebar-accordion[open] .sidebar-toggle-icon {
+    transform: rotate(-135deg);
+  }
+
+  .sidebar-accordion:not([open]) .sidebar-body {
+    display: none;
+  }
+
+  .sidebar-body {
+    gap: 1rem;
+  }
+
+  .sidebar-footer {
+    margin-top: 0;
   }
 
   .update-hero,
@@ -994,7 +1085,7 @@ button {
   }
 
   .brand-logo {
-    width: min(100%, 210px);
+    width: min(100%, 190px);
   }
 
   .update-mini-grid {
