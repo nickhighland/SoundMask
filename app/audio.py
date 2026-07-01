@@ -220,6 +220,12 @@ class AudioManager:
             "audio_device_hint": self._audio_device_hint(),
         }
 
+    def report_error(self, message: str) -> None:
+        self._last_error = message
+
+    def clear_error(self) -> None:
+        self._last_error = None
+
     def _fade_out(self, fade_out_seconds: int) -> None:
         start_volume = self._current_volume_percent
         for step in range(fade_out_seconds * 4, -1, -1):

@@ -11,6 +11,7 @@ from app.config import AppConfig, AppPaths
 from app.db import init_db
 from app.models import TriggerBlock
 from app.scheduler import SoundMaskScheduler
+from app.sound_mixer import SoundMixManager
 
 
 def test_fake_block_persists_and_survives_sync():
@@ -39,6 +40,7 @@ def test_fake_block_persists_and_survives_sync():
             AudioManager(Path(paths.logs) / "mpv.sock"),
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
         )
         scheduler.add_fake_block(1, 3)
         assert db.get_state("fake_blocks")
@@ -97,6 +99,7 @@ def test_ics_source_syncs_local_feed():
             AudioManager(Path(paths.logs) / "mpv.sock"),
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
         )
 
         scheduler.sync_cycle()
@@ -178,6 +181,7 @@ def test_ics_title_match_sync_keeps_adjacent_appointments_distinct_in_cache():
             AudioManager(Path(paths.logs) / "mpv.sock"),
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
         )
 
         scheduler.sync_cycle()
@@ -291,6 +295,7 @@ def test_google_freebusy_uses_display_blocks_for_calendar_view(monkeypatch):
             AudioManager(Path(paths.logs) / "mpv.sock"),
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
         )
         now = datetime.now(timezone.utc).replace(microsecond=0)
         playback_block = TriggerBlock(
@@ -350,6 +355,7 @@ def test_sync_window_bounds_start_at_local_day():
             AudioManager(Path(paths.logs) / "mpv.sock"),
             GoogleCalendarClient(config),
             IcsCalendarClient(config),
+            SoundMixManager(Path(paths.root) / "mixes"),
         )
         scheduler.db.set_setting("timezone_name", "America/New_York")
         now = datetime(2026, 7, 1, 3, 15, tzinfo=timezone.utc)

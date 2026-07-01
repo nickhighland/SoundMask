@@ -8,6 +8,7 @@ from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 
 from app.audio import DEFAULT_VOLUME_PERCENT, MAX_MPV_VOLUME_PERCENT
 from app.auth import login_required
+from app.models import SoundMixLayer
 
 ALLOWED_EXTENSIONS = {".wav", ".mp3", ".ogg", ".flac"}
 
@@ -19,17 +20,32 @@ def _safe_filename(raw_name: str) -> str:
     return "".join(char for char in name if char.isalnum() or char in {"-", "_", ".", " "}).strip()
 
 
+def _normalized_layer_volume(raw_value: object) -> int:
+    try:
+        return max(0, min(int(raw_value), 100))
+    except (TypeError, ValueError):
+        return 100
+
+
 @router.get("", response_class=HTMLResponse)
 @login_required
 async def sounds_page(request: Request) -> HTMLResponse:
     db = request.app.state.db
     audio = request.app.state.audio
+    mix_layers = db.resolve_sound_mix_layers()
+    mix_diagnostics = request.app.state.sound_mixer.diagnostics()
     return request.app.state.templates.TemplateResponse(
         request,
         "sounds.html",
         {
             "sounds": db.list_sounds(),
-            "active_sound": db.get_active_sound(),
+            "mix_layers": mix_layers,
+            "mix_layer_map": {
+                layer.sound.id: layer.volume_percent for layer in mix_layers
+            },
+            "mix_summary": request.app.state.sound_mixer.describe_layers(mix_layers),
+            "mix_diagnostics": mix_diagnostics,
+            "selected_layer_count": len(mix_layers),
             "volume_percent": db.get_setting(
                 "volume_percent",
                 DEFAULT_VOLUME_PERCENT,
@@ -56,12 +72,61 @@ async def upload_sound(
     target = request.app.state.config.paths.sounds / filename
     target.write_bytes(await sound_file.read())
     mime_type = sound_file.content_type or mimetypes.guess_type(filename)[0]
-    request.app.state.db.add_sound(filename, filename, str(target), mime_type)
+    sound = request.app.state.db.add_sound(
+        filename,
+        Path(filename).stem,
+        str(target),
+        mime_type,
+    )
     if request.app.state.db.get_active_sound() is None:
-        sounds = request.app.state.db.list_sounds()
-        if sounds:
-            request.app.state.db.set_active_sound(sounds[0].id)
+        request.app.state.db.set_active_sound(sound.id)
     request.session["sound_message"] = f"Uploaded {filename}."
+    return RedirectResponse(url="/sounds", status_code=303)
+
+
+@router.post("/mix")
+@login_required
+async def update_mix(
+    request: Request,
+) -> RedirectResponse:
+    db = request.app.state.db
+    form = await request.form()
+    available_sounds = {sound.id: sound for sound in db.list_sounds()}
+    selected_sound_ids: list[int] = []
+    for raw_value in form.getlist("selected_sound_ids"):
+        try:
+            sound_id = int(raw_value)
+        except (TypeError, ValueError):
+            continue
+        if sound_id not in available_sounds or sound_id in selected_sound_ids:
+            continue
+        selected_sound_ids.append(sound_id)
+
+    layers = [
+        SoundMixLayer(
+            sound_id=sound_id,
+            volume_percent=_normalized_layer_volume(
+                form.get(f"layer_volume_{sound_id}", 100)
+            ),
+        )
+        for sound_id in selected_sound_ids
+    ]
+    db.set_sound_mix_layers(layers)
+    if len(layers) == 1:
+        db.set_active_sound(layers[0].sound_id)
+
+    audio = request.app.state.audio
+    audio.clear_error()
+    message = "Cleared the current mix."
+    if layers:
+        try:
+            request.app.state.sound_mixer.playback_source(db.resolve_sound_mix_layers())
+            message = f"Saved a mix with {len(layers)} layer(s)."
+        except RuntimeError as exc:
+            audio.report_error(str(exc))
+            message = f"Saved a mix with {len(layers)} layer(s). {exc}"
+    request.app.state.scheduler.evaluate_playback()
+    request.session["sound_message"] = message
     return RedirectResponse(url="/sounds", status_code=303)
 
 
@@ -72,12 +137,15 @@ async def select_sound(
     sound_id: int = Form(...),
 ) -> RedirectResponse:
     request.app.state.db.set_active_sound(sound_id)
+    request.app.state.db.set_sound_mix_layers(
+        [SoundMixLayer(sound_id=sound_id, volume_percent=100)]
+    )
     request.app.state.scheduler.evaluate_playback()
     sound = request.app.state.db.get_sound(sound_id)
     request.session["sound_message"] = (
-        f"{sound.display_name} is now the active masking track."
+        f"{sound.display_name} is now the only layer in the current mix."
         if sound
-        else "Active sound updated."
+        else "Current mix updated."
     )
     return RedirectResponse(url="/sounds", status_code=303)
 
@@ -105,6 +173,38 @@ async def test_sound(
     return RedirectResponse(url="/sounds", status_code=303)
 
 
+@router.post("/test-mix")
+@login_required
+async def test_mix(request: Request) -> RedirectResponse:
+    layers = request.app.state.db.resolve_sound_mix_layers()
+    if not layers:
+        request.session["sound_message"] = "Select at least one sound layer first."
+        return RedirectResponse(url="/sounds", status_code=303)
+
+    try:
+        mix_source = request.app.state.sound_mixer.playback_source(layers)
+    except RuntimeError as exc:
+        request.app.state.audio.report_error(str(exc))
+        request.session["sound_message"] = str(exc)
+        return RedirectResponse(url="/sounds", status_code=303)
+
+    if mix_source is None or not mix_source.exists():
+        request.session["sound_message"] = "The current mix could not be prepared."
+        return RedirectResponse(url="/sounds", status_code=303)
+
+    result = request.app.state.audio.test(
+        mix_source,
+        int(
+            request.app.state.db.get_setting(
+                "volume_percent",
+                DEFAULT_VOLUME_PERCENT,
+            )
+        ),
+    )
+    request.session["sound_message"] = str(result["message"])
+    return RedirectResponse(url="/sounds", status_code=303)
+
+
 @router.get("/{sound_id}/preview")
 @login_required
 async def preview_sound(
@@ -128,6 +228,8 @@ async def delete_sound(
     sound_id: int = Form(...),
 ) -> RedirectResponse:
     sound = request.app.state.db.delete_sound(sound_id)
+    if request.app.state.db.get_state("sound_mix_layers", None) is not None:
+        request.app.state.db.remove_sound_from_mix(sound_id)
     if sound and sound.path.exists():
         sound.path.unlink(missing_ok=True)
     remaining = request.app.state.db.list_sounds()

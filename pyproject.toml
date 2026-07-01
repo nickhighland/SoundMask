@@ -49,4 +49,4 @@ version = { attr = "app.__version__" }
 include = ["app", "app.*"]
 
 [tool.setuptools.package-data]
-app = ["static/*", "templates/*.html"]
+app = ["static/*", "templates/*.html", "bundled_sounds/*"]

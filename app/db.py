@@ -9,7 +9,14 @@ from typing import Any, Iterator
 from uuid import uuid4
 
 from app.config import AppConfig
-from app.models import CalendarAccount, SoundRecord, TitleMatchRule, TriggerBlock
+from app.models import (
+    CalendarAccount,
+    ResolvedSoundMixLayer,
+    SoundMixLayer,
+    SoundRecord,
+    TitleMatchRule,
+    TriggerBlock,
+)
 from app.audio import DEFAULT_VOLUME_PERCENT
 from app.timezones import SYSTEM_TIMEZONE
 
@@ -243,7 +250,7 @@ class Database:
     def list_sounds(self) -> list[SoundRecord]:
         with self.connect() as conn:
             rows = conn.execute(
-                "SELECT * FROM sounds ORDER BY is_active DESC, created_at DESC"
+                "SELECT * FROM sounds ORDER BY LOWER(display_name) ASC, created_at ASC"
             ).fetchall()
         return [
             SoundRecord(
@@ -257,6 +264,24 @@ class Database:
             )
             for row in rows
         ]
+
+    def get_sound_by_filename(self, filename: str) -> SoundRecord | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT * FROM sounds WHERE filename = ? ORDER BY id DESC LIMIT 1",
+                (filename,),
+            ).fetchone()
+        if row is None:
+            return None
+        return SoundRecord(
+            id=row["id"],
+            filename=row["filename"],
+            display_name=row["display_name"],
+            path=Path(row["path"]),
+            mime_type=row["mime_type"],
+            created_at=row["created_at"],
+            is_active=bool(row["is_active"]),
+        )
 
     def get_sound(self, sound_id: int) -> SoundRecord | None:
         with self.connect() as conn:
@@ -299,15 +324,32 @@ class Database:
         display_name: str,
         path: str,
         mime_type: str | None,
-    ) -> None:
+    ) -> SoundRecord:
+        existing = self.get_sound_by_filename(filename)
+        if existing is not None:
+            with self.connect() as conn:
+                conn.execute(
+                    """
+                    UPDATE sounds
+                    SET display_name = ?, path = ?, mime_type = ?
+                    WHERE id = ?
+                    """,
+                    (display_name, path, mime_type, existing.id),
+                )
+            return self.get_sound(existing.id) or existing
         with self.connect() as conn:
-            conn.execute(
+            cursor = conn.execute(
                 """
                 INSERT INTO sounds(filename, display_name, path, mime_type, created_at)
                 VALUES (?, ?, ?, ?, ?)
                 """,
                 (filename, display_name, path, mime_type, utcnow_iso()),
             )
+            sound_id = int(cursor.lastrowid)
+        sound = self.get_sound(sound_id)
+        if sound is None:
+            raise RuntimeError("Sound record could not be loaded after insert.")
+        return sound
 
     def set_active_sound(self, sound_id: int) -> None:
         with self.connect() as conn:
@@ -324,6 +366,61 @@ class Database:
         with self.connect() as conn:
             conn.execute("DELETE FROM sounds WHERE id = ?", (sound_id,))
         return sound
+
+    def get_sound_mix_layers(self) -> list[SoundMixLayer]:
+        payload = self.get_state("sound_mix_layers", None)
+        if payload is None:
+            active_sound = self.get_active_sound()
+            if active_sound is None:
+                return []
+            return [SoundMixLayer(sound_id=active_sound.id, volume_percent=100)]
+        layers: list[SoundMixLayer] = []
+        for item in payload:
+            try:
+                sound_id = int(item.get("sound_id"))
+                volume_percent = max(0, min(int(item.get("volume_percent", 100)), 100))
+            except (TypeError, ValueError, AttributeError):
+                continue
+            layers.append(
+                SoundMixLayer(
+                    sound_id=sound_id,
+                    volume_percent=volume_percent,
+                )
+            )
+        return layers
+
+    def resolve_sound_mix_layers(self) -> list[ResolvedSoundMixLayer]:
+        sounds_by_id = {sound.id: sound for sound in self.list_sounds()}
+        resolved_layers: list[ResolvedSoundMixLayer] = []
+        for layer in self.get_sound_mix_layers():
+            sound = sounds_by_id.get(layer.sound_id)
+            if sound is None:
+                continue
+            resolved_layers.append(
+                ResolvedSoundMixLayer(
+                    sound=sound,
+                    volume_percent=layer.volume_percent,
+                )
+            )
+        return resolved_layers
+
+    def set_sound_mix_layers(self, layers: list[SoundMixLayer]) -> None:
+        payload = [
+            {
+                "sound_id": int(layer.sound_id),
+                "volume_percent": max(0, min(int(layer.volume_percent), 100)),
+            }
+            for layer in layers
+        ]
+        self.set_state("sound_mix_layers", payload)
+
+    def remove_sound_from_mix(self, sound_id: int) -> None:
+        remaining_layers = [
+            layer
+            for layer in self.get_sound_mix_layers()
+            if layer.sound_id != sound_id
+        ]
+        self.set_sound_mix_layers(remaining_layers)
 
     def get_title_rules(self) -> list[TitleMatchRule]:
         with self.connect() as conn:

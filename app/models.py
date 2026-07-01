@@ -49,6 +49,18 @@ class SoundRecord:
 
 
 @dataclass(slots=True)
+class SoundMixLayer:
+    sound_id: int
+    volume_percent: int
+
+
+@dataclass(slots=True)
+class ResolvedSoundMixLayer:
+    sound: SoundRecord
+    volume_percent: int
+
+
+@dataclass(slots=True)
 class CalendarAccount:
     id: int
     provider: str

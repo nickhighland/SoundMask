@@ -5,9 +5,9 @@
   <div class="section-heading">
     <div>
       <p class="eyebrow">Sound Library</p>
-      <h1>Upload, preview, and route audio</h1>
+      <h1>Build a layered masking mix</h1>
     </div>
-    <p class="muted">Browser preview works immediately. Appliance playback prefers <code>mpv</code>, with local fallbacks for testing.</p>
+    <p class="muted">Use the dashboard volume as the master level. The sliders here shape each layer inside the mix before playback.</p>
   </div>
   {% if sound_message %}
   <section class="banner info-banner">
@@ -25,20 +25,63 @@
     </div>
   </section>
   {% endif %}
+  {% if not mix_diagnostics.ffmpeg_available %}
+  <section class="banner warning-banner">
+    <div>
+      <strong>Layered mixes need <code>ffmpeg</code></strong>
+      <p class="muted">Single-layer playback at <code>100%</code> still works, but layered mixes and per-layer sound levels require <code>ffmpeg</code> to build the combined track.</p>
+    </div>
+  </section>
+  {% endif %}
 </section>
 
-<section class="grid-two">
+<section class="grid-two sound-workspace">
+  <article class="panel stack">
+    <div class="section-heading">
+      <div>
+        <p class="eyebrow">Current Mix</p>
+        <h2>{{ mix_summary }}</h2>
+      </div>
+      <span class="status-pill neutral">{{ selected_layer_count }} layer{% if selected_layer_count != 1 %}s{% endif %}</span>
+    </div>
+    <div class="note-card">
+      <strong>Master volume</strong>
+      <p class="muted">The dashboard slider controls the final output level for this mix. It is currently set to <code>{{ volume_percent }} / {{ max_volume_percent }}%</code>.</p>
+    </div>
+    {% if mix_layers %}
+    <ul class="list-clean compact-list mix-layer-list">
+      {% for layer in mix_layers %}
+      <li>
+        <strong>{{ layer.sound.display_name }}</strong>
+        <span>{{ layer.volume_percent }}%</span>
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <div class="empty-state">
+      <h3>No mix selected yet</h3>
+      <p class="muted">Enable one or more sounds below, set their layer levels, then save the mix.</p>
+    </div>
+    {% endif %}
+    <div class="button-row">
+      <button type="submit" form="sound-mix-form">Save Current Mix</button>
+      <form action="/sounds/test-mix" method="post">
+        <button type="submit" class="secondary">Test Current Mix</button>
+      </form>
+    </div>
+  </article>
+
   <article class="panel stack">
     <div class="section-heading">
       <div>
         <p class="eyebrow">Import</p>
-        <h2>Upload sound</h2>
+        <h2>Add custom sounds</h2>
       </div>
     </div>
-    <p class="muted">Allowed formats: WAV, MP3, OGG, FLAC.</p>
+    <p class="muted">The Creative Commons sample library is embedded in the app. You can add your own WAV, MP3, OGG, or FLAC files here too.</p>
     <form action="/sounds/upload" method="post" enctype="multipart/form-data" class="stack">
       <input type="file" name="sound_file" accept=".wav,.mp3,.ogg,.flac,audio/*" required />
-      <button type="submit">Upload</button>
+      <button type="submit">Upload Sound</button>
     </form>
     <div class="subpanel stack">
       <h3>Playback backends</h3>
@@ -46,62 +89,96 @@
         <li><strong>Loop backend</strong><span>{{ audio_diagnostics.loop_backend or 'Unavailable' }}</span></li>
         <li><strong>Test backend</strong><span>{{ audio_diagnostics.test_backend or 'Unavailable' }}</span></li>
         <li><strong>mpv</strong><span>{% if audio_diagnostics.mpv_available %}Ready{% else %}Missing{% endif %}</span></li>
-        <li><strong>ffplay</strong><span>{% if audio_diagnostics.ffplay_available %}Ready{% else %}Missing{% endif %}</span></li>
+        <li><strong>ffmpeg</strong><span>{% if mix_diagnostics.ffmpeg_available %}Ready{% else %}Missing{% endif %}</span></li>
       </ul>
       {% if not audio_diagnostics.mpv_available %}
-      <p class="muted">SoundMask can fall back to {{ audio_diagnostics.loop_backend or 'local test playback' }}, but <code>mpv</code> is still the preferred appliance backend: <code>{{ audio_diagnostics.install_hint }}</code>.</p>
+      <p class="muted"><code>mpv</code> is still the preferred appliance backend: <code>{{ audio_diagnostics.install_hint }}</code>.</p>
       {% endif %}
     </div>
   </article>
+</section>
 
-  <article class="panel stack">
+<form id="sound-mix-form" action="/sounds/mix" method="post" class="stack">
+  <section class="panel stack">
     <div class="section-heading">
       <div>
         <p class="eyebrow">Library</p>
-        <h2>Available tracks</h2>
+        <h2>Included and uploaded sounds</h2>
       </div>
-      <span class="status-pill neutral">Current volume {{ volume_percent }} / {{ max_volume_percent }}%</span>
+      <span class="status-pill neutral">Dashboard volume stays the master control</span>
     </div>
-    <p class="muted">Standard playback tops out at <code>100%</code>. Raise it above that only when you want extra <code>mpv</code> output boost.</p>
     {% if sounds %}
-    <ul class="list-clean sound-list">
+    <div class="sound-library-grid">
       {% for sound in sounds %}
-      <li class="sound-card">
+      {% set in_mix = sound.id in mix_layer_map %}
+      <article class="sound-card sound-layer-card{% if in_mix %} is-selected{% endif %}" data-layer-card>
         <div class="sound-card-top">
-          <div>
+          <div class="sound-layer-heading">
             <strong>{{ sound.display_name }}</strong>
             <p class="muted">{{ sound.mime_type or 'audio file' }}</p>
           </div>
-          {% if sound.is_active %}
-          <span class="status-pill active">Active track</span>
-          {% endif %}
+          <label class="sound-toggle">
+            <input
+              type="checkbox"
+              name="selected_sound_ids"
+              value="{{ sound.id }}"
+              {% if in_mix %}checked{% endif %}
+              data-layer-toggle
+            />
+            <span>Include in mix</span>
+          </label>
         </div>
+
         <audio controls preload="none" class="sound-preview">
           <source src="/sounds/{{ sound.id }}/preview" type="{{ sound.mime_type or 'audio/mpeg' }}" />
         </audio>
+
+        <label class="sound-layer-volume" for="layer-volume-{{ sound.id }}">
+          <span>Layer volume</span>
+          <div class="sound-layer-volume-row">
+            <input
+              id="layer-volume-{{ sound.id }}"
+              type="range"
+              name="layer_volume_{{ sound.id }}"
+              min="0"
+              max="100"
+              value="{{ mix_layer_map.get(sound.id, 100) }}"
+              {% if not in_mix %}disabled{% endif %}
+              data-layer-slider
+            />
+            <output data-layer-output>{{ mix_layer_map.get(sound.id, 100) }}%</output>
+          </div>
+        </label>
+
         <div class="button-row compact">
-          <form action="/sounds/select" method="post">
-            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
-            <button type="submit" class="secondary">Select</button>
-          </form>
-          <form action="/sounds/test" method="post">
-            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
-            <button type="submit" class="secondary">Test Device Output</button>
-          </form>
-          <form action="/sounds/delete" method="post">
-            <input type="hidden" name="sound_id" value="{{ sound.id }}" />
-            <button type="submit" class="danger">Delete</button>
-          </form>
+          <button type="submit" class="secondary" form="sound-solo-{{ sound.id }}">Use Alone</button>
+          <button type="submit" class="secondary" form="sound-test-{{ sound.id }}">Test This Sound</button>
+          <button type="submit" class="danger" form="sound-delete-{{ sound.id }}">Delete</button>
         </div>
-      </li>
+      </article>
       {% endfor %}
-    </ul>
+    </div>
+    <div class="button-row">
+      <button type="submit">Save Current Mix</button>
+    </div>
     {% else %}
     <div class="empty-state">
-      <h3>No sounds uploaded yet</h3>
-      <p class="muted">Upload an MP3 or WAV to preview it in the browser and route it through the appliance output.</p>
+      <h3>No sounds available yet</h3>
+      <p class="muted">Upload an MP3 or WAV to start building a layered masking mix.</p>
     </div>
     {% endif %}
-  </article>
-</section>
+  </section>
+</form>
+
+{% for sound in sounds %}
+<form id="sound-solo-{{ sound.id }}" action="/sounds/select" method="post" class="visually-hidden-form">
+  <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+</form>
+<form id="sound-test-{{ sound.id }}" action="/sounds/test" method="post" class="visually-hidden-form">
+  <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+</form>
+<form id="sound-delete-{{ sound.id }}" action="/sounds/delete" method="post" class="visually-hidden-form">
+  <input type="hidden" name="sound_id" value="{{ sound.id }}" />
+</form>
+{% endfor %}
 {% endblock %}

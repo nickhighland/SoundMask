@@ -12,6 +12,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from app import __version__
 from app.audio import AudioManager
 from app.auth import has_admin_password, hash_password, verify_password
+from app.bundled_sounds import sync_bundled_sounds
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.config import ensure_app_dirs, get_config
 from app.db import init_db
@@ -26,6 +27,7 @@ from app.routes import (
     updates_router,
 )
 from app.scheduler import SoundMaskScheduler
+from app.sound_mixer import SoundMixManager
 
 
 config = get_config()
@@ -34,10 +36,18 @@ configure_logging(config)
 templates = Jinja2Templates(directory="app/templates")
 templates.env.globals["app_version"] = __version__
 database = init_db(config)
+sync_bundled_sounds(config, database)
 audio = AudioManager(config.paths.logs / "mpv.sock")
 calendar_client = GoogleCalendarClient(config)
 ics_calendar_client = IcsCalendarClient(config)
-scheduler = SoundMaskScheduler(database, audio, calendar_client, ics_calendar_client)
+sound_mixer = SoundMixManager(config.paths.root / "mixes")
+scheduler = SoundMaskScheduler(
+    database,
+    audio,
+    calendar_client,
+    ics_calendar_client,
+    sound_mixer,
+)
 logger = logging.getLogger(__name__)
 
 
@@ -67,6 +77,7 @@ app.state.config = config
 app.state.audio = audio
 app.state.calendar_client = calendar_client
 app.state.ics_calendar_client = ics_calendar_client
+app.state.sound_mixer = sound_mixer
 
 app.include_router(dashboard_router)
 app.include_router(calendar_view_router)

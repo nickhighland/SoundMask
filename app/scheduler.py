@@ -11,6 +11,7 @@ from app.audio import AudioManager, DEFAULT_VOLUME_PERCENT
 from app.calendar_client import GoogleCalendarClient, IcsCalendarClient
 from app.db import Database, utcnow_iso
 from app.models import ManualState, TriggerBlock
+from app.sound_mixer import SoundMixManager
 from app.timezones import resolve_timezone
 from app.trigger_rules import (
     apply_buffers,
@@ -33,11 +34,13 @@ class SoundMaskScheduler:
         audio: AudioManager,
         calendar_client: GoogleCalendarClient,
         ics_calendar_client: IcsCalendarClient,
+        sound_mixer: SoundMixManager,
     ):
         self.db = db
         self.audio = audio
         self.calendar_client = calendar_client
         self.ics_calendar_client = ics_calendar_client
+        self.sound_mixer = sound_mixer
         self.scheduler = BackgroundScheduler(timezone="UTC")
         self.current_blocks: list[TriggerBlock] = []
         self.calendar_blocks: list[TriggerBlock] = []
@@ -171,11 +174,19 @@ class SoundMaskScheduler:
         manual_state = self._manual_state()
         now = datetime.now(timezone.utc)
         decision = should_play(now, settings, self.current_blocks, manual_state)
-        active_sound = self.db.get_active_sound()
+        mix_layers = self.db.resolve_sound_mix_layers()
+        playback_source = None
+        if mix_layers:
+            try:
+                playback_source = self.sound_mixer.playback_source(mix_layers)
+                self.audio.clear_error()
+            except RuntimeError as exc:
+                self.audio.report_error(str(exc))
+                logger.warning("Layered mix unavailable: %s", exc)
         self.audio.fade_in_seconds = int(settings.get("fade_in_seconds", 0))
-        if decision.should_play and active_sound and active_sound.path.exists():
+        if decision.should_play and playback_source and playback_source.exists():
             self.audio.start(
-                active_sound.path,
+                playback_source,
                 int(settings.get("volume_percent", DEFAULT_VOLUME_PERCENT)),
             )
             self.audio.set_volume(
@@ -241,14 +252,14 @@ class SoundMaskScheduler:
         )
         next_block = get_next_block(now, self.current_blocks)
         snapshot = self.db.get_state("status_snapshot", {})
-        active_sound = self.db.get_active_sound()
+        mix_layers = self.db.resolve_sound_mix_layers()
         mute_until = self.db.get_state("mute_until")
         return {
             "state": self.audio.status()["state"],
             "detail": snapshot.get("reason", self.last_sync_message),
             "trigger_mode": self.db.get_setting("trigger_mode", "fake"),
             "calendar_source": self.db.get_setting("calendar_source", "google"),
-            "active_sound": active_sound.display_name if active_sound else "None selected",
+            "active_sound": self.sound_mixer.describe_layers(mix_layers),
             "volume_percent": self.db.get_setting(
                 "volume_percent",
                 DEFAULT_VOLUME_PERCENT,

@@ -52,6 +52,29 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+  document.querySelectorAll("[data-layer-card]").forEach((card) => {
+    const toggle = card.querySelector("[data-layer-toggle]");
+    const slider = card.querySelector("[data-layer-slider]");
+    const output = card.querySelector("[data-layer-output]");
+    if (
+      !(toggle instanceof HTMLInputElement)
+      || !(slider instanceof HTMLInputElement)
+      || !(output instanceof HTMLOutputElement)
+    ) {
+      return;
+    }
+
+    const syncLayerCard = () => {
+      slider.disabled = !toggle.checked;
+      output.textContent = `${slider.value}%`;
+      card.classList.toggle("is-selected", toggle.checked);
+    };
+
+    toggle.addEventListener("change", syncLayerCard);
+    slider.addEventListener("input", syncLayerCard);
+    syncLayerCard();
+  });
+
   document.querySelectorAll("[data-log-viewer]").forEach((viewer) => {
     const endpoint = viewer.dataset.endpoint;
     const sourceSelect = viewer.querySelector("[data-log-source]");

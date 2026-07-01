@@ -82,10 +82,17 @@ async def unmute(request: Request) -> RedirectResponse:
 @login_required
 async def test_sound(request: Request) -> RedirectResponse:
     db = request.app.state.db
-    sound = db.get_active_sound()
-    if sound and sound.path.exists():
+    mix_layers = db.resolve_sound_mix_layers()
+    sound_source = None
+    if mix_layers:
+        try:
+            sound_source = request.app.state.sound_mixer.playback_source(mix_layers)
+            request.app.state.audio.clear_error()
+        except RuntimeError as exc:
+            request.app.state.audio.report_error(str(exc))
+    if sound_source and sound_source.exists():
         request.app.state.audio.test(
-            sound.path,
+            sound_source,
             int(db.get_setting("volume_percent", DEFAULT_VOLUME_PERCENT)),
         )
     return RedirectResponse(url="/", status_code=303)
