@@ -217,7 +217,7 @@
               </label>
             </div>
 
-            <audio controls preload="none" class="sound-preview">
+            <audio controls loop preload="none" class="sound-preview" data-layer-preview>
               <source src="/sounds/{{ sound.id }}/preview" type="{{ sound.mime_type or 'audio/mpeg' }}" />
             </audio>
 
@@ -231,7 +231,6 @@
                   min="0"
                   max="100"
                   value="{{ mix_layer_map.get(sound.id, 100) }}"
-                  {% if not in_mix %}disabled{% endif %}
                   data-layer-slider
                 />
                 <output data-layer-output>{{ mix_layer_map.get(sound.id, 100) }}%</output>
@@ -240,7 +239,6 @@
 
             <div class="sound-card-actions">
               <button type="submit" class="secondary" form="sound-solo-{{ sound.id }}">Use Alone</button>
-              <button type="submit" class="secondary" form="sound-test-{{ sound.id }}">Test</button>
               <button type="submit" class="danger" form="sound-delete-{{ sound.id }}">Delete</button>
             </div>
           </article>
@@ -263,9 +261,6 @@
 
 {% for sound in sounds %}
 <form id="sound-solo-{{ sound.id }}" action="/sounds/select" method="post" class="visually-hidden-form">
-  <input type="hidden" name="sound_id" value="{{ sound.id }}" />
-</form>
-<form id="sound-test-{{ sound.id }}" action="/sounds/test" method="post" class="visually-hidden-form">
   <input type="hidden" name="sound_id" value="{{ sound.id }}" />
 </form>
 <form id="sound-delete-{{ sound.id }}" action="/sounds/delete" method="post" class="visually-hidden-form">

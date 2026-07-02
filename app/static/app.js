@@ -126,10 +126,12 @@ document.addEventListener("DOMContentLoaded", () => {
     const toggle = card.querySelector("[data-layer-toggle]");
     const slider = card.querySelector("[data-layer-slider]");
     const output = card.querySelector("[data-layer-output]");
+    const preview = card.querySelector("[data-layer-preview]");
     if (
       !(toggle instanceof HTMLInputElement)
       || !(slider instanceof HTMLInputElement)
       || !(output instanceof HTMLOutputElement)
+      || !(preview instanceof HTMLAudioElement)
     ) {
       return;
     }
@@ -146,9 +148,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     const syncLayerCard = () => {
-      slider.disabled = !toggle.checked;
       output.textContent = `${slider.value}%`;
       syncLayerTrack();
+      preview.volume = Math.max(0, Math.min(1, Number(slider.value || "0") / 100));
       card.classList.toggle("is-selected", toggle.checked);
     };
 

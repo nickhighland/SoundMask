@@ -8,6 +8,17 @@ The format is inspired by Keep a Changelog, with an `Unreleased` section at the 
 
 - Update this section as work lands, then roll the notes into the next versioned release.
 
+## [0.1.14] - 2026-07-01
+
+### Changed
+
+- Updated the Sounds page so each layer slider now doubles as the browser-preview volume control for that sound.
+- Made per-sound preview players loop by default so layer levels are easier to audition.
+
+### Removed
+
+- Removed the per-sound `Test` button from sound cards while keeping `Test Current Mix` for device-level playback checks.
+
 ## [0.1.13] - 2026-07-01
 
 ### Changed
