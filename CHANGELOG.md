@@ -8,6 +8,19 @@ The format is inspired by Keep a Changelog, with an `Unreleased` section at the 
 
 - Update this section as work lands, then roll the notes into the next versioned release.
 
+## [0.1.13] - 2026-07-01
+
+### Changed
+
+- Added the live master volume slider to the Sounds page header so the main output level is available alongside mix editing.
+- Simplified the Sounds and Settings screens by removing redundant explanatory copy and helper cards.
+- Moved the dashboard System Health section beneath Today's Schedule for a cleaner visual flow.
+
+### Fixed
+
+- Fixed Settings form control sizing so long output-device selections stay inside their panel.
+- Fixed the Calendar Settings `.ics` action button contrast so the label remains readable.
+
 ## [0.1.12] - 2026-07-01
 
 ### Added

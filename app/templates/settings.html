@@ -68,17 +68,6 @@
             <input type="number" min="1" name="manual_play_duration_minutes" value="{{ settings.manual_play_duration_minutes }}" />
           </label>
         </div>
-        <div class="note-card">
-          <strong>Timezone in use</strong>
-          <p class="muted">
-            {% if timezone_info.uses_system %}
-            Using the device timezone <code>{{ timezone_info.effective_name }}</code> ({{ timezone_info.offset_label }}).
-            {% else %}
-            Using <code>{{ timezone_info.effective_name }}</code> ({{ timezone_info.offset_label }}).
-            {% endif %}
-            Current local time there is {{ timezone_info.current_time_label }}.
-          </p>
-        </div>
         <label class="checkbox"><input type="checkbox" name="active_hours_enabled" {% if settings.active_hours_enabled %}checked{% endif %} /> Enable active hours</label>
         <label class="checkbox"><input type="checkbox" name="ignore_all_day_events" {% if settings.ignore_all_day_events %}checked{% endif %} /> Ignore all-day events</label>
       </section>
@@ -107,18 +96,6 @@
             <input type="number" min="0" name="fade_out_seconds" value="{{ settings.fade_out_seconds }}" />
           </label>
         </div>
-        <div class="note-card">
-          <strong>Volume range</strong>
-          <p class="muted"><code>100%</code> is standard playback. Values from <code>101%</code> to <code>{{ max_volume_percent }}%</code> use <code>mpv</code> boost for extra headroom on the appliance. Fallback players still cap at their native maximum.</p>
-        </div>
-        <div class="note-card">
-          <strong>Output routing</strong>
-          <p class="muted">{{ audio_diagnostics.selected_output_device_label }}. {{ audio_diagnostics.selected_output_device_description }}</p>
-        </div>
-        <div class="note-card">
-          <strong>Diagnostics</strong>
-          <p class="muted">Keep debug event-summary storage off unless you are actively troubleshooting title matching.</p>
-        </div>
         <label class="checkbox"><input type="checkbox" name="debug_store_event_summaries" {% if settings.debug_store_event_summaries %}checked{% endif %} /> Debug store event summaries</label>
       </section>
     </div>
@@ -134,7 +111,6 @@
       <p class="eyebrow">Network</p>
       <h1>Web access port</h1>
     </div>
-    <p class="muted">Choose which port the Linux appliance should listen on for the SoundMask web UI.</p>
   </div>
 
   {% if network_status.request_pending %}
@@ -195,10 +171,6 @@
       <div class="note-card">
         <strong>Default port</strong>
         <p class="muted">Port <code>80</code> is the easiest option because it lets people open <code>http://soundmask.local</code> without typing a port number.</p>
-      </div>
-      <div class="note-card">
-        <strong>Apply behavior</strong>
-        <p class="muted">Saving here updates the appliance config and restarts SoundMask automatically. If you choose a non-default port, reconnect using that port.</p>
       </div>
       <div class="button-row">
         <button type="submit">Apply Network Change</button>

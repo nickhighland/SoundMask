@@ -83,6 +83,31 @@
   </div>
 </section>
 
+<section class="panel dashboard-today-schedule">
+  <div class="section-heading dashboard-section-heading">
+      <div>
+        <p class="eyebrow">Today</p>
+        <h2>Today's Schedule</h2>
+      </div>
+  </div>
+    <div class="timeline-frame timeline-frame-dashboard">
+      <div class="timeline-scale">
+        {% for hour in schedule_view.timeline_hours %}
+        <span>{{ hour }}</span>
+        {% endfor %}
+      </div>
+      <div class="timeline-track timeline-track-dashboard">
+        <div class="now-marker" style="left: {{ schedule_view.now_percent }}%;"></div>
+        {% for segment in schedule_view.timeline_segments %}
+        <div class="timeline-segment timeline-segment-dashboard{% if segment.active %} active{% endif %}" style="left: {{ segment.left }}%; width: {{ segment.width }}%;"></div>
+        {% endfor %}
+      </div>
+    </div>
+    {% if not schedule_view.timeline_segments %}
+    <p class="muted dashboard-timeline-note">No playback is scheduled for today.</p>
+    {% endif %}
+</section>
+
 <section class="panel dashboard-health">
   <div class="section-heading dashboard-section-heading">
     <div>
@@ -108,31 +133,6 @@
     </article>
     {% endfor %}
   </div>
-</section>
-
-<section class="panel dashboard-today-schedule">
-  <div class="section-heading dashboard-section-heading">
-      <div>
-        <p class="eyebrow">Today</p>
-        <h2>Today's Schedule</h2>
-      </div>
-  </div>
-    <div class="timeline-frame timeline-frame-dashboard">
-      <div class="timeline-scale">
-        {% for hour in schedule_view.timeline_hours %}
-        <span>{{ hour }}</span>
-        {% endfor %}
-      </div>
-      <div class="timeline-track timeline-track-dashboard">
-        <div class="now-marker" style="left: {{ schedule_view.now_percent }}%;"></div>
-        {% for segment in schedule_view.timeline_segments %}
-        <div class="timeline-segment timeline-segment-dashboard{% if segment.active %} active{% endif %}" style="left: {{ segment.left }}%; width: {{ segment.width }}%;"></div>
-        {% endfor %}
-      </div>
-    </div>
-    {% if not schedule_view.timeline_segments %}
-    <p class="muted dashboard-timeline-note">No playback is scheduled for today.</p>
-    {% endif %}
 </section>
 </div>
 {% endblock %}

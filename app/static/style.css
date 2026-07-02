@@ -260,11 +260,13 @@ code {
 
 .panel {
   padding: 1.5rem;
+  min-width: 0;
   background: var(--panel);
 }
 
 .subpanel {
   padding: 1.2rem;
+  min-width: 0;
 }
 
 .note-card {
@@ -343,6 +345,27 @@ code {
 
 .dashboard-volume-form {
   width: min(440px, 100%);
+}
+
+.sounds-hero-heading {
+  align-items: center;
+}
+
+.sounds-master-volume {
+  flex: 1 1 360px;
+  width: min(520px, 100%);
+  margin-left: auto;
+  padding: 1rem 1.2rem;
+  border-radius: 24px;
+  border: 1px solid rgba(102, 127, 162, 0.14);
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.92), rgba(241, 247, 255, 0.84)),
+    radial-gradient(circle at center, rgba(100, 157, 246, 0.18), transparent 70%);
+  box-shadow: var(--shadow-soft);
+}
+
+.sounds-master-volume-field {
+  gap: 0.55rem;
 }
 
 .dashboard-volume-field {
@@ -554,6 +577,10 @@ code {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 1rem;
+}
+
+.form-grid > * {
+  min-width: 0;
 }
 
 .button-row,
@@ -1376,6 +1403,7 @@ code {
 label {
   display: grid;
   gap: 0.38rem;
+  min-width: 0;
   font-weight: 600;
 }
 
@@ -1387,6 +1415,9 @@ button {
 
 input,
 select {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
   min-height: 48px;
   border: 1px solid var(--line);
   border-radius: 15px;
@@ -1394,6 +1425,14 @@ select {
   background: #ffffff;
   color: var(--text);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"],
+input[type="hidden"] {
+  width: auto;
+  max-width: none;
 }
 
 input:focus,
@@ -1668,6 +1707,11 @@ button {
   .dashboard-volume-field output {
     min-width: 0;
     text-align: center;
+  }
+
+  .sounds-master-volume {
+    width: 100%;
+    margin-left: 0;
   }
 
   .calendar-week-header,

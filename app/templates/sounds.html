@@ -2,12 +2,37 @@
 {% block title %}Sounds | SoundMask{% endblock %}
 {% block content %}
 <section class="panel stack">
-  <div class="section-heading">
+  <div class="section-heading sounds-hero-heading">
     <div>
       <p class="eyebrow">Sound Library</p>
       <h1>Build a layered masking mix</h1>
     </div>
-    <p class="muted">Use the dashboard volume as the master level. The sliders here shape each layer inside the mix before playback.</p>
+    <form
+      action="/actions/volume"
+      method="post"
+      class="dashboard-volume-form sounds-master-volume"
+      data-volume-form
+      data-volume-live="{% if audio_status.backend == 'mpv' %}true{% else %}false{% endif %}"
+    >
+      <label class="dashboard-volume-field sounds-master-volume-field" for="sounds-master-volume">
+        <span>Sound Volume</span>
+        <div class="dashboard-volume-control">
+          <input
+            id="sounds-master-volume"
+            type="range"
+            name="volume_percent"
+            min="0"
+            max="{{ max_volume_percent }}"
+            value="{{ volume_percent }}"
+            data-volume-slider
+          />
+        </div>
+        <output for="sounds-master-volume" data-volume-output>{{ volume_percent }}%</output>
+      </label>
+      <noscript>
+        <button type="submit" class="secondary">Apply Volume</button>
+      </noscript>
+    </form>
   </div>
   {% if sound_message %}
   <section class="banner info-banner">
@@ -43,20 +68,6 @@
         <h2>{{ mix_summary }}</h2>
       </div>
       <span class="status-pill neutral">{{ selected_layer_count }} layer{% if selected_layer_count != 1 %}s{% endif %}</span>
-    </div>
-    <div class="note-card">
-      <strong>Master volume</strong>
-      <p class="muted">The dashboard slider controls the final output level for this mix. It is currently set to <code>{{ volume_percent }} / {{ max_volume_percent }}%</code>.</p>
-    </div>
-    <div class="note-card">
-      <strong>Loudness normalization</strong>
-      <p class="muted">
-        {% if mix_diagnostics.normalization_supported %}
-        SoundMask renders the current mix through <code>ffmpeg</code> and targets approximately <code>{{ mix_diagnostics.normalization_target_lufs }} LUFS</code> so <code>100%</code> feels more consistent across sounds.
-        {% else %}
-        Install <code>ffmpeg</code> to normalize loudness across different sounds and layered mixes.
-        {% endif %}
-      </p>
     </div>
     {% if mix_layers %}
     <ul class="list-clean compact-list mix-layer-list">
@@ -168,7 +179,6 @@
         <p class="eyebrow">Library</p>
         <h2>Included and uploaded sounds</h2>
       </div>
-      <span class="status-pill neutral">Dashboard volume stays the master control</span>
     </div>
     {% if sounds %}
     <div class="sound-library-sections">
