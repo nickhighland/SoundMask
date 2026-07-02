@@ -127,14 +127,67 @@ document.addEventListener("DOMContentLoaded", () => {
     const slider = card.querySelector("[data-layer-slider]");
     const output = card.querySelector("[data-layer-output]");
     const preview = card.querySelector("[data-layer-preview]");
+    const AudioContextCtor = window.AudioContext || window.webkitAudioContext;
     if (
       !(toggle instanceof HTMLInputElement)
       || !(slider instanceof HTMLInputElement)
-      || !(output instanceof HTMLOutputElement)
-      || !(preview instanceof HTMLAudioElement)
+      || !(output instanceof HTMLElement)
+      || !(preview instanceof HTMLMediaElement)
     ) {
       return;
     }
+
+    let previewAudioContext = null;
+    let previewGainNode = null;
+
+    const normalizedSliderValue = () => Math.max(
+      0,
+      Math.min(1, Number(slider.value || "0") / 100),
+    );
+
+    const ensurePreviewAudioGraph = async () => {
+      if (!AudioContextCtor) {
+        return false;
+      }
+      if (previewGainNode && previewAudioContext) {
+        if (previewAudioContext.state === "suspended") {
+          try {
+            await previewAudioContext.resume();
+          } catch (_error) {
+            return false;
+          }
+        }
+        return true;
+      }
+      try {
+        previewAudioContext = previewAudioContext || new AudioContextCtor();
+        const sourceNode = previewAudioContext.createMediaElementSource(preview);
+        previewGainNode = previewAudioContext.createGain();
+        sourceNode.connect(previewGainNode);
+        previewGainNode.connect(previewAudioContext.destination);
+        if (previewAudioContext.state === "suspended") {
+          await previewAudioContext.resume();
+        }
+        return true;
+      } catch (_error) {
+        previewAudioContext = null;
+        previewGainNode = null;
+        return false;
+      }
+    };
+
+    const syncPreviewVolume = () => {
+      const volume = normalizedSliderValue();
+      if (previewGainNode && previewAudioContext) {
+        preview.volume = 1;
+        previewGainNode.gain.setValueAtTime(
+          volume,
+          previewAudioContext.currentTime,
+        );
+        return;
+      }
+      preview.volume = volume;
+    };
 
     const syncLayerTrack = () => {
       const min = Number(slider.min || "0");
@@ -150,12 +203,23 @@ document.addEventListener("DOMContentLoaded", () => {
     const syncLayerCard = () => {
       output.textContent = `${slider.value}%`;
       syncLayerTrack();
-      preview.volume = Math.max(0, Math.min(1, Number(slider.value || "0") / 100));
+      syncPreviewVolume();
       card.classList.toggle("is-selected", toggle.checked);
     };
 
     toggle.addEventListener("change", syncLayerCard);
     slider.addEventListener("input", syncLayerCard);
+    slider.addEventListener("change", syncLayerCard);
+    preview.addEventListener("play", () => {
+      ensurePreviewAudioGraph()
+        .then(() => {
+          syncPreviewVolume();
+        })
+        .catch(() => {
+          syncPreviewVolume();
+        });
+    });
+    preview.addEventListener("loadedmetadata", syncLayerCard);
     syncLayerCard();
   });
 
@@ -273,5 +337,130 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     updateTimer();
+  });
+
+  document.querySelectorAll("[data-update-monitor]").forEach((monitor) => {
+    const endpoint = monitor.dataset.statusEndpoint;
+    const monitorEnabled = monitor.dataset.monitorEnabled === "true";
+    if (!endpoint || !monitorEnabled) {
+      return;
+    }
+
+    const badge = monitor.querySelector("[data-update-badge]");
+    const summary = document.querySelector("[data-update-summary]");
+    const heading = document.querySelector("[data-update-monitor-heading]");
+    const message = document.querySelector("[data-update-monitor-message]");
+    const baselineVersion = monitor.dataset.currentVersion || "";
+    const baselineCommit = monitor.dataset.currentCommit || "";
+    const baselineLastInstall = monitor.dataset.lastInstallAt || "";
+    let pollTimer = null;
+
+    const setBadge = (state, text) => {
+      if (!(badge instanceof HTMLElement)) {
+        return;
+      }
+      badge.classList.remove("ok", "warning", "pending", "error");
+      badge.classList.add(state);
+      badge.textContent = text;
+    };
+
+    const renderUpdateState = (status) => {
+      if (summary instanceof HTMLElement) {
+        summary.textContent = status.status_message || "Checking update status...";
+      }
+      if (status.last_error) {
+        if (heading instanceof HTMLElement) {
+          heading.textContent = "Update issue";
+        }
+        if (message instanceof HTMLElement) {
+          message.textContent = status.last_error;
+        }
+        setBadge("error", "Attention needed");
+        return;
+      }
+      if (status.install_in_progress) {
+        if (heading instanceof HTMLElement) {
+          heading.textContent = "Installing update";
+        }
+        if (message instanceof HTMLElement) {
+          message.textContent = "SoundMask is installing the update now. This page will refresh automatically after the service comes back online.";
+        }
+        setBadge("pending", "Installing update");
+        return;
+      }
+      if (status.install_requested) {
+        if (heading instanceof HTMLElement) {
+          heading.textContent = "Update install requested";
+        }
+        if (message instanceof HTMLElement) {
+          message.textContent = "SoundMask will install the update and restart itself shortly. This page will refresh automatically when the new version is live.";
+        }
+        setBadge("pending", "Install queued");
+        return;
+      }
+      if (status.update_available) {
+        setBadge("warning", "Update available");
+        return;
+      }
+      setBadge("ok", "Up to date");
+    };
+
+    const installCompleted = (status) => {
+      if (status.install_requested || status.install_in_progress || status.last_error) {
+        return false;
+      }
+      return Boolean(
+        (status.last_install_at && status.last_install_at !== baselineLastInstall)
+        || (baselineCommit && status.current_commit && status.current_commit !== baselineCommit)
+        || (baselineVersion && status.current_version && status.current_version !== baselineVersion)
+        || status.status_message === "Update installed successfully.",
+      );
+    };
+
+    const schedulePoll = (delayMs) => {
+      if (pollTimer) {
+        window.clearTimeout(pollTimer);
+      }
+      pollTimer = window.setTimeout(() => {
+        pollUpdateStatus().catch(() => {});
+      }, delayMs);
+    };
+
+    const pollUpdateStatus = async () => {
+      try {
+        const response = await fetch(endpoint, {
+          headers: {
+            Accept: "application/json",
+          },
+        });
+        if (!response.ok) {
+          throw new Error(`Update status refresh failed (${response.status})`);
+        }
+        const status = await response.json();
+        renderUpdateState(status);
+        if (installCompleted(status)) {
+          if (message instanceof HTMLElement) {
+            message.textContent = "Update installed successfully. Refreshing this page now.";
+          }
+          window.location.reload();
+          return;
+        }
+        schedulePoll(3000);
+      } catch (_error) {
+        if (heading instanceof HTMLElement) {
+          heading.textContent = "Installing update";
+        }
+        if (message instanceof HTMLElement) {
+          message.textContent = "Waiting for SoundMask to restart and come back online. This page will refresh automatically once it responds again.";
+        }
+        if (summary instanceof HTMLElement) {
+          summary.textContent = "Waiting for SoundMask to come back online.";
+        }
+        setBadge("pending", "Restarting");
+        schedulePoll(2000);
+      }
+    };
+
+    schedulePoll(1500);
   });
 });

@@ -94,11 +94,14 @@ def load_status(config: AppConfig) -> dict[str, Any]:
     payload.setdefault("latest_commit", None)
     payload.setdefault("last_checked_at", None)
     payload.setdefault("last_install_at", None)
+    payload.setdefault("install_in_progress", False)
+    payload.setdefault("install_started_at", None)
     payload.setdefault("last_error", None)
     payload.setdefault("status_message", "Update status has not been checked yet.")
     payload["check_requested_at"] = check_request.get("requested_at")
     payload["install_requested"] = install_request_path(config).exists()
     payload["install_requested_at"] = install_request.get("requested_at")
+    payload["install_in_progress"] = bool(payload.get("install_in_progress", False))
     payload["update_available"] = bool(payload.get("update_available", False))
     payload["install_supported"] = (app_root(config) / ".git").exists()
     return payload
@@ -138,6 +141,8 @@ def request_install(config: AppConfig) -> dict[str, Any]:
         config,
         {
             "install_requested_at": payload["requested_at"],
+            "install_in_progress": False,
+            "install_started_at": None,
             "last_error": None,
             "status_message": (
                 "Update install requested. SoundMask is starting the Linux installer now."
@@ -222,6 +227,8 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
         "last_checked_at": utcnow_iso(),
         "install_requested": install_request_path(config).exists(),
         "install_requested_at": _load_json(install_request_path(config)).get("requested_at"),
+        "install_in_progress": bool(existing.get("install_in_progress", False)),
+        "install_started_at": existing.get("install_started_at"),
         "check_requested_at": None,
     }
     if not (repo_path / ".git").exists():
@@ -289,9 +296,27 @@ def check_for_updates(config: AppConfig) -> dict[str, Any]:
 
 
 def install_update(config: AppConfig) -> dict[str, Any]:
+    install_request = _load_json(install_request_path(config))
     clear_install_request(config)
+    save_status(
+        config,
+        {
+            "install_requested_at": install_request.get("requested_at"),
+            "install_in_progress": True,
+            "install_started_at": utcnow_iso(),
+            "last_error": None,
+            "status_message": "Installing update now.",
+        },
+    )
     status = check_for_updates(config)
     if status.get("last_error"):
+        save_status(
+            config,
+            {
+                "install_in_progress": False,
+                "install_started_at": None,
+            },
+        )
         return status
     if not status.get("update_available"):
         logger.info("Update install skipped because no update was available.")
@@ -299,6 +324,8 @@ def install_update(config: AppConfig) -> dict[str, Any]:
             config,
             {
                 "install_requested_at": None,
+                "install_in_progress": False,
+                "install_started_at": None,
                 "status_message": "No update was waiting to be installed.",
             },
         )
@@ -324,6 +351,8 @@ def install_update(config: AppConfig) -> dict[str, Any]:
             {
                 "last_install_at": utcnow_iso(),
                 "install_requested_at": None,
+                "install_in_progress": False,
+                "install_started_at": None,
                 "status_message": "Update installed successfully.",
                 "last_error": None,
             },
@@ -335,6 +364,8 @@ def install_update(config: AppConfig) -> dict[str, Any]:
             config,
             {
                 "install_requested_at": None,
+                "install_in_progress": False,
+                "install_started_at": None,
                 "last_error": str(exc),
                 "status_message": "Update install failed.",
             },

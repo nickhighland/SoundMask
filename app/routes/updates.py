@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse, RedirectResponse
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 
 from app.auth import login_required
 from app.display import format_datetime_label
@@ -29,9 +29,7 @@ def _update_timestamp_label(
     return format_datetime_label(localize_datetime(value, timezone_name))
 
 
-@router.get("", response_class=HTMLResponse)
-@login_required
-async def updates_page(request: Request) -> HTMLResponse:
+def _update_status_payload(request: Request) -> dict[str, object]:
     settings = request.app.state.db.get_settings()
     timezone_name = settings.get("timezone_name")
     update_status = load_status(request.app.state.config)
@@ -43,13 +41,25 @@ async def updates_page(request: Request) -> HTMLResponse:
         update_status.get("last_install_at"),
         timezone_name,
     )
+    return update_status
+
+
+@router.get("", response_class=HTMLResponse)
+@login_required
+async def updates_page(request: Request) -> HTMLResponse:
     return request.app.state.templates.TemplateResponse(
         request,
         "updates.html",
         {
-            "update_status": update_status,
+            "update_status": _update_status_payload(request),
         },
     )
+
+
+@router.get("/status", response_class=JSONResponse)
+@login_required
+async def updates_status(request: Request) -> JSONResponse:
+    return JSONResponse(_update_status_payload(request))
 
 
 @router.post("/check")

@@ -8,6 +8,16 @@ The format is inspired by Keep a Changelog, with an `Unreleased` section at the 
 
 - Update this section as work lands, then roll the notes into the next versioned release.
 
+## [0.1.15] - 2026-07-01
+
+### Added
+
+- Added live update-install monitoring so the Updates page keeps polling during restart and refreshes itself automatically once the new build is back online.
+
+### Fixed
+
+- Fixed browser sound previews so layer sliders actively change preview loudness more reliably during playback.
+
 ## [0.1.14] - 2026-07-01
 
 ### Changed

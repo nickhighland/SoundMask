@@ -1,7 +1,15 @@
 {% extends 'base.html' %}
 {% block title %}Updates | SoundMask{% endblock %}
 {% block content %}
-<section class="panel update-hero">
+<section
+  class="panel update-hero"
+  data-update-monitor
+  data-status-endpoint="/updates/status"
+  data-monitor-enabled="{% if update_status.install_requested or update_status.install_in_progress %}true{% else %}false{% endif %}"
+  data-current-version="{{ update_status.current_version }}"
+  data-current-commit="{{ update_status.current_commit or '' }}"
+  data-last-install-at="{{ update_status.last_install_at or '' }}"
+>
   <div class="update-hero-copy stack">
     <div class="section-heading">
       <div>
@@ -22,9 +30,11 @@
     </div>
   </div>
   <aside class="update-hero-meta">
-    <span class="update-state-badge{% if update_status.last_error %} error{% elif update_status.install_requested %} pending{% elif update_status.update_available %} warning{% else %} ok{% endif %}">
+    <span class="update-state-badge{% if update_status.last_error %} error{% elif update_status.install_requested or update_status.install_in_progress %} pending{% elif update_status.update_available %} warning{% else %} ok{% endif %}" data-update-badge>
       {% if update_status.last_error %}
       Attention needed
+      {% elif update_status.install_in_progress %}
+      Installing update
       {% elif update_status.install_requested %}
       Install queued
       {% elif update_status.update_available %}
@@ -43,10 +53,16 @@
 </section>
 {% endif %}
 
-{% if update_status.install_requested %}
+{% if update_status.install_requested or update_status.install_in_progress %}
 <section class="banner warning-banner">
-  <strong>Update install requested</strong>
-  <p class="muted">SoundMask will install the update and restart itself shortly.</p>
+  <strong data-update-monitor-heading>{% if update_status.install_in_progress %}Installing update{% else %}Update install requested{% endif %}</strong>
+  <p class="muted" data-update-monitor-message>
+    {% if update_status.install_in_progress %}
+    SoundMask is installing the update now. This page will refresh automatically after the service comes back online.
+    {% else %}
+    SoundMask will install the update and restart itself shortly. This page will refresh automatically when the new version is live.
+    {% endif %}
+  </p>
 </section>
 {% endif %}
 
@@ -92,7 +108,7 @@
       </div>
       <div class="status-row">
         <span>Summary</span>
-        <strong>{{ update_status.status_message }}</strong>
+        <strong data-update-summary>{{ update_status.status_message }}</strong>
       </div>
     </div>
   </article>
